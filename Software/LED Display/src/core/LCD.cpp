@@ -9,12 +9,21 @@ ILI9341_T4::ILI9341Driver LCD::tft(TFT_CS, TFT_DC, SCK, MOSI, MISO, TFT_RESET,
 lv_disp_draw_buf_t LCD::draw_buf;
 lv_disp_drv_t LCD::disp_drv;
 lv_indev_drv_t LCD::indev_drv;
+static bool lcd_ready = false;
 
 void LCD::begin() {
   // send debug info to serial port.
   tft.output(&Serial);
-  while (!tft.begin(SPI_SPEED))
-    ;
+  if (!tft.begin(SPI_SPEED)) {
+    Serial.println("LCD init failed, keeping LED animation running");
+    return;
+  }
+
+  pinMode(TFT_LED, OUTPUT);
+  digitalWrite(TFT_LED, HIGH);
+  Serial.println("LCD hardware init only, skipping LCD framebuffer/LVGL setup");
+  return;
+
   tft.setFramebuffer(internal_fb);
   tft.setDiffBuffers(&diff1, &diff2);
   tft.setRotation(1);
@@ -24,9 +33,6 @@ void LCD::begin() {
   // this to 1 to minimize screen tearing.
   tft.setVSyncSpacing(1);
   tft.setRefreshRate(180);
-
-  pinMode(TFT_LED, OUTPUT);
-  digitalWrite(TFT_LED, HIGH);
 
   // touchscreen XPT2046 on the same SPI bus
   // tft.calibrateTouch();
@@ -57,10 +63,13 @@ void LCD::begin() {
 
   // Generate the GUI (generate with Squareline Studio)
   ui_init();
+  lcd_ready = true;
 }
 
 // lvgl gui handler
-void LCD::loop() { lv_task_handler(); }
+void LCD::loop() {
+  if (lcd_ready) lv_task_handler();
+}
 
 // Callback to draw on the screen
 void LCD::cb_disp_flush(lv_disp_drv_t* disp, const lv_area_t* area,

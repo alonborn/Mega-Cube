@@ -1,79 +1,34 @@
 #include <Arduino.h>
 
-static const uint8_t DIN = 8;
-static const uint8_t WCK = 9;
-static const uint8_t BCK = 10;
-static const uint16_t LEDS_PER_CHANNEL = 128;
-static const uint8_t BITS_PER_LED = 24;
-static uint8_t frame = 0;
+#include "core/Config.h"
+#include "core/ESP8266.h"
+#include "space/Animation.h"
 
-static inline void latchAllChannels(bool high) {
-  for (uint8_t i = 0; i < 32; i++) {
-    digitalWriteFast(DIN, high ? HIGH : LOW);
-    digitalWriteFast(BCK, HIGH);
-    digitalWriteFast(BCK, LOW);
-  }
+Config config;
 
-  digitalWriteFast(WCK, HIGH);
-  digitalWriteFast(WCK, LOW);
-}
-
-static void sendPulse(bool value) {
-  // PL9823 waveform:
-  // 0-bit = high, low,  low,  low
-  // 1-bit = high, data, data, low
-  latchAllChannels(true);
-  latchAllChannels(value);
-  latchAllChannels(value);
-  latchAllChannels(false);
-}
-
-static void sendPl9823Frame() {
-  noInterrupts();
-  for (uint16_t led = 0; led < LEDS_PER_CHANNEL; led++) {
-    const bool active_led = ((led + frame) & 0x0F) < 8;
-    const uint8_t red = active_led ? 24 : 0;
-    const uint8_t green = active_led ? 0 : 24;
-    const uint8_t blue = ((led >> 4) & 1) ? 24 : 0;
-    const uint32_t color = ((uint32_t)red << 16) |
-                           ((uint32_t)green << 8) |
-                           blue;
-
-    for (uint8_t bit = 0; bit < BITS_PER_LED; bit++) {
-      sendPulse(color & (0x800000 >> bit));
-    }
-  }
-  latchAllChannels(false);
-  interrupts();
-
-  delayMicroseconds(300);
-}
+static Timer print_interval = 2.0f;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(DIN, OUTPUT);
-  pinMode(WCK, OUTPUT);
-  pinMode(BCK, OUTPUT);
-
-  digitalWrite(DIN, LOW);
-  digitalWrite(WCK, LOW);
-  digitalWrite(BCK, LOW);
-
   Serial.begin(115200);
+  Serial1.begin(460800);
+
+  DMAMEM static char read_buffer[4096];
+  Serial1.addMemoryForRead(read_buffer, sizeof(read_buffer));
+
+  DMAMEM static char write_buffer[1024];
+  Serial1.addMemoryForWrite(write_buffer, sizeof(write_buffer));
+
+  ESP8266::request_time();
+
+  Animation::begin();
 }
 
 void loop() {
-  sendPl9823Frame();
-  frame++;
+  Animation::loop();
+  ESP8266::loop();
 
-  digitalWrite(LED_BUILTIN, HIGH);
-  Serial.println("PL9823 bit-bang tower test: ON");
-  delay(250);
-
-  sendPl9823Frame();
-  frame++;
-
-  digitalWrite(LED_BUILTIN, LOW);
-  Serial.println("PL9823 bit-bang tower test: OFF");
-  delay(250);
+  if (print_interval.update()) {
+    Serial.printf("Animation-only test FPS=%1.2f\n", Animation::fps());
+  }
 }
