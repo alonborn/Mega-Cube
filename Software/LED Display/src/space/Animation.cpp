@@ -5,6 +5,7 @@
 #include "Atoms.h"
 #include "Fireworks.h"
 #include "Helix.h"
+#include "LedTest.h"
 #include "Life.h"
 #include "Mario.h"
 #include "Plasma.h"
@@ -30,6 +31,7 @@ Atoms atoms;
 Fireworks fireworks1;
 Fireworks fireworks2;
 Helix helix;
+LedTest ledtest;
 Life life;
 Mario mario;
 Plasma plasma;
@@ -41,7 +43,8 @@ Starfield starfield;
 Twinkels twinkels;
 Cube cube;
 
-Animation *Animations[] = {&atoms,      &sinus,    &starfield,    &fireworks1,
+Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
+                           &fireworks1,
                            &fireworks2, &twinkels, &helix,        &arrows,
                            &plasma,     &mario,    &life,         &pong,
                            &spectrum,   &scroller, &accelerometer, &cube};
@@ -120,6 +123,7 @@ void TWINKELS2() { twinkels.set_mode(false, true); }
 
 jump_item_t Animation::get_item(uint16_t index) {
   const jump_item_t jump_table[] = {
+      {"LED Test", "All LEDs color and sweep test", 0, &ledtest},
       {"Accelerometer", "Test accelerometer", 0, &accelerometer},
       {"Arrows", "Moving arrows", 0, &arrows},
       {"Atoms", "Electons arround nucleas", 0, &atoms},

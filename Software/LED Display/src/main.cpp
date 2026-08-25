@@ -1,58 +1,79 @@
 #include <Arduino.h>
 
-#include "core/Config.h"
-#include "core/ESP8266.h"
-#include "core/LCD.h"
-#include "space/animation.h"
-/*------------------------------------------------------------------------------
- * Globals
- *----------------------------------------------------------------------------*/
-Config config;
-/*------------------------------------------------------------------------------
- * Initialize setup parameters
- *----------------------------------------------------------------------------*/
-void setup() {
-  // Start with clearing blue leds asap
-  Animation::begin();
-  // Safety delay in case of code crash
-  // delay(5000);
-  // Serial output to usb for console display
-  Serial.begin(115200);
-  // ESP8266 UART baudrate on Hardware Serial1
-  Serial1.begin(460800);
-  // Prevents RX buffer overflow if not reading fast enough
-  DMAMEM static char read_buffer[4096];
-  Serial1.addMemoryForRead(read_buffer, sizeof(read_buffer));
-  // Prevents TX buffer overflow and blocking the program
-  DMAMEM static char write_buffer[1024];
-  Serial1.addMemoryForWrite(write_buffer, sizeof(write_buffer));
-  // Request time from Internet, the UART or Internet might fail
-  ESP8266::request_time();
-  // Start the LCD driver
-  LCD::begin();
-}
-/*------------------------------------------------------------------------------
- * Start the main loop
- *----------------------------------------------------------------------------*/
-void loop() {
-  // Print FPS once every x seconds
-  static Timer print_interval = 10.0f;
+static const uint8_t DIN = 8;
+static const uint8_t WCK = 9;
+static const uint8_t BCK = 10;
+static const uint16_t LEDS_PER_CHANNEL = 128;
+static const uint8_t BITS_PER_LED = 24;
+static uint8_t frame = 0;
 
-  Animation::loop();
-  ESP8266::loop();
-  LCD::loop();
-
-  if (print_interval.update()) {
-    static char fps[20];
-    sprintf(fps, "FPS=%1.2f", Animation::fps());
-    Serial.println(fps);
-    // Serial1.print(fps);
-    // Serial1.print("\xf8\xfa");
-    //  Serial1.flush();
-    //   Testing connection from teensy to esp to wio terminal
-    //   Send end esp and end wio commands to reset bit errors
-    // static uint8_t byte = 0;
-    // Serial1.printf("\xf8%02X ", byte++);
-    // Serial1.flush();
+static inline void latchAllChannels(bool high) {
+  for (uint8_t i = 0; i < 32; i++) {
+    digitalWriteFast(DIN, high ? HIGH : LOW);
+    digitalWriteFast(BCK, HIGH);
+    digitalWriteFast(BCK, LOW);
   }
+
+  digitalWriteFast(WCK, HIGH);
+  digitalWriteFast(WCK, LOW);
+}
+
+static void sendPulse(bool value) {
+  // PL9823 waveform:
+  // 0-bit = high, low,  low,  low
+  // 1-bit = high, data, data, low
+  latchAllChannels(true);
+  latchAllChannels(value);
+  latchAllChannels(value);
+  latchAllChannels(false);
+}
+
+static void sendPl9823Frame() {
+  noInterrupts();
+  for (uint16_t led = 0; led < LEDS_PER_CHANNEL; led++) {
+    const bool active_led = ((led + frame) & 0x0F) < 8;
+    const uint8_t red = active_led ? 24 : 0;
+    const uint8_t green = active_led ? 0 : 24;
+    const uint8_t blue = ((led >> 4) & 1) ? 24 : 0;
+    const uint32_t color = ((uint32_t)red << 16) |
+                           ((uint32_t)green << 8) |
+                           blue;
+
+    for (uint8_t bit = 0; bit < BITS_PER_LED; bit++) {
+      sendPulse(color & (0x800000 >> bit));
+    }
+  }
+  latchAllChannels(false);
+  interrupts();
+
+  delayMicroseconds(300);
+}
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(DIN, OUTPUT);
+  pinMode(WCK, OUTPUT);
+  pinMode(BCK, OUTPUT);
+
+  digitalWrite(DIN, LOW);
+  digitalWrite(WCK, LOW);
+  digitalWrite(BCK, LOW);
+
+  Serial.begin(115200);
+}
+
+void loop() {
+  sendPl9823Frame();
+  frame++;
+
+  digitalWrite(LED_BUILTIN, HIGH);
+  Serial.println("PL9823 bit-bang tower test: ON");
+  delay(250);
+
+  sendPl9823Frame();
+  frame++;
+
+  digitalWrite(LED_BUILTIN, LOW);
+  Serial.println("PL9823 bit-bang tower test: OFF");
+  delay(250);
 }
