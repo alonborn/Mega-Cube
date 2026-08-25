@@ -2,6 +2,7 @@
 
 #include "core/Config.h"
 #include "core/ESP8266.h"
+#include "core/LCD.h"
 #include "space/Animation.h"
 
 Config config;
@@ -21,14 +22,16 @@ void setup() {
 
   ESP8266::request_time();
 
+  LCD::begin();
   Animation::begin();
 }
 
 void loop() {
   Animation::loop();
   ESP8266::loop();
+  LCD::loop();
 
   if (print_interval.update()) {
-    Serial.printf("Animation-only test FPS=%1.2f\n", Animation::fps());
+    Serial.printf("FPS=%1.2f\n", Animation::fps());
   }
 }

@@ -12,9 +12,19 @@ lv_indev_drv_t LCD::indev_drv;
 static bool lcd_ready = false;
 
 void LCD::begin() {
+  pinMode(TFT_LED, OUTPUT);
+  digitalWrite(TFT_LED, HIGH);
+  Serial.println("LCD begin: tft.begin only, skipping framebuffer/LVGL");
+
   // send debug info to serial port.
   tft.output(&Serial);
   if (!tft.begin(SPI_SPEED)) {
+    NVIC_DISABLE_IRQ(IRQ_LPSPI4);
+    IMXRT_LPSPI4_S.IER = 0;
+    IMXRT_LPSPI4_S.DER = 0;
+    SPI.end();
+    digitalWrite(TFT_CS, HIGH);
+    digitalWrite(TOUCH_CS, HIGH);
     Serial.println("LCD init failed, keeping LED animation running");
     return;
   }
