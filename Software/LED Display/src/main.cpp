@@ -10,7 +10,7 @@ static Timer print_interval = 2.0f;
 
 static void configureAnimationShow() {
   config.animation.play_one = true;
-  config.animation.animation = 16;
+  config.animation.animation = 17;
 
   config.animation.accelerometer.runtime = 15.0f;
   config.animation.arrows.runtime = 15.0f;

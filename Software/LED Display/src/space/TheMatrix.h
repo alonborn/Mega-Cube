@@ -5,7 +5,7 @@
 
 class TheMatrix : public Animation {
  private:
-  static const uint8_t STREAMS = 42;
+  static const uint8_t STREAMS = 80;
 
   struct Stream {
     uint8_t x;
@@ -25,7 +25,7 @@ class TheMatrix : public Animation {
                                 : Display::height + random(0, 16) * 0.25f;
     streams[i].speed = noise.nextRandom(5.5f, 15.0f);
     streams[i].length = random(4, 11);
-    streams[i].brightness = random(120, 256);
+    streams[i].brightness = random(80, 190);
   }
 
  public:
@@ -60,16 +60,16 @@ class TheMatrix : public Animation {
         uint8_t level = stream.brightness / (tail + 1);
         Color c;
         if (tail == 0) {
-          c = Color(40, 255, 80).scale(level);
+          c = Color(0, 180, 20).scale(level);
         } else {
-          c = Color(0, 220, 35).scale(level);
+          c = Color(0, 130, 10).scale(level);
         }
         voxel(stream.x, y, stream.z, c);
       }
 
       if (random(0, 28) == 0) {
         voxel(stream.x, random(0, Display::height), stream.z,
-              Color(40, 255, 80));
+              Color(0, 150, 25));
       }
     }
   }
