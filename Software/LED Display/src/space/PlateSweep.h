@@ -19,7 +19,7 @@ class PlateSweep : public Animation {
 
     const float seconds_per_plate = 0.7f;
     const uint16_t step = phase / seconds_per_plate;
-    const uint8_t axis = 2;
+    const uint8_t axis = (step / 16) % 3;
     const uint8_t plate = step & 0x0F;
     const uint8_t x_plate = (3 - (plate >> 2)) * 4 + (plate & 0x03);
     const uint8_t y_plate = 15 - plate;
@@ -28,7 +28,7 @@ class PlateSweep : public Animation {
     if (axis == 0) {
       color = Color(120, 0, 0);
     } else if (axis == 1) {
-      color = Color(120, 0, 0);
+      color = Color(0, 120, 0);
     } else {
       color = Color(0, 0, 120);
     }
