@@ -4,6 +4,7 @@
 #include "Arrows.h"
 #include "Atoms.h"
 #include "Fireworks.h"
+#include "Gyroid.h"
 #include "Helix.h"
 #include "LedTest.h"
 #include "Life.h"
@@ -19,6 +20,7 @@
 #include "Starfield.h"
 #include "TheMatrix.h"
 #include "Twinkels.h"
+#include "WhiteTest.h"
 #include "Cube.h"
 /*------------------------------------------------------------------------------
  * ANIMATION STATIC DEFINITIONS
@@ -34,6 +36,7 @@ Arrows arrows;
 Atoms atoms;
 Fireworks fireworks1;
 Fireworks fireworks2;
+Gyroid gyroid;
 Helix helix;
 LedTest ledtest;
 Life life;
@@ -49,6 +52,7 @@ SpottedSphere spotted_sphere;
 Starfield starfield;
 TheMatrix the_matrix;
 Twinkels twinkels;
+WhiteTest white_test;
 Cube cube;
 
 Animation *Animations[] = {&plate_sweep, &ledtest,  &rgb_test,     &atoms,
@@ -58,7 +62,7 @@ Animation *Animations[] = {&plate_sweep, &ledtest,  &rgb_test,     &atoms,
                            &plasma,     &mario,    &life,         &pong,
                            &spectrum,   &spotted_sphere,
                            &scroller,   &accelerometer, &cube,
-                           &the_matrix};
+                           &the_matrix, &white_test, &gyroid};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -153,6 +157,8 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Spotted Sphere", "Accelerating spotted sphere", 0, &spotted_sphere},
       {"Starfield", "To boldly go...", 0, &starfield},
       {"The Matrix", "Falling green digital rain", 0, &the_matrix},
+      {"White Test", "Full cube white fade test", 0, &white_test},
+      {"Gyroid", "Flowing 3D trigonometric surface", 0, &gyroid},
       {"Fairylights", "Beautifull fairylights", &TWINKELS1, &twinkels},
       {"Multilights", "Multicolor fairylights", &TWINKELS2, &twinkels},
       {0, 0, 0, 0}};
