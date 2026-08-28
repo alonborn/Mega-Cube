@@ -8,6 +8,7 @@
 #include "LedTest.h"
 #include "Life.h"
 #include "Mario.h"
+#include "PlateSweep.h"
 #include "Plasma.h"
 #include "Pong.h"
 #include "Scroller.h"
@@ -34,6 +35,7 @@ Helix helix;
 LedTest ledtest;
 Life life;
 Mario mario;
+PlateSweep plate_sweep;
 Plasma plasma;
 Pong pong;
 Scroller scroller;
@@ -43,7 +45,8 @@ Starfield starfield;
 Twinkels twinkels;
 Cube cube;
 
-Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
+Animation *Animations[] = {&plate_sweep, &ledtest,  &atoms,        &sinus,
+                           &starfield,
                            &fireworks1,
                            &fireworks2, &twinkels, &helix,        &arrows,
                            &plasma,     &mario,    &life,         &pong,
@@ -123,7 +126,8 @@ void TWINKELS2() { twinkels.set_mode(false, true); }
 
 jump_item_t Animation::get_item(uint16_t index) {
   const jump_item_t jump_table[] = {
-      {"LED Test", "All LEDs color and sweep test", 0, &ledtest},
+      {"Plate Sweep", "Moving 16x16 plate mapping test", 0, &plate_sweep},
+      {"All LEDs Test", "All LEDs color and sweep test", 0, &ledtest},
       {"Accelerometer", "Test accelerometer", 0, &accelerometer},
       {"Arrows", "Moving arrows", 0, &arrows},
       {"Atoms", "Electons arround nucleas", 0, &atoms},
