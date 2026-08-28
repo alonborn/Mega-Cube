@@ -17,6 +17,22 @@ uint8_t Display::brightness = 255;
 uint32_t Display::cubeBuffer = 0;
 DMAMEM Color Display::cube[2][width][height][depth];
 
+static uint8_t mapPhysicalXToCubeX(uint8_t x) {
+  return (3 - (x >> 2)) * 4 + (x & 0x03);
+}
+
+static uint8_t mapPhysicalYToCubeY(uint8_t y) { return 15 - y; }
+
+static uint8_t mapPhysicalZToCubeZ(uint8_t x, uint8_t z) {
+  if (x >= 4 && x < 8 && (z < 4 || (z >= 8 && z < 12))) {
+    return (z & 0x0C) | ((z + 2) & 0x03);
+  }
+  if (x >= 4 && z >= 12) {
+    return (z & 0x0C) | ((z + 2) & 0x03);
+  }
+  return z;
+}
+
 void Display::begin() {
   setupRAM();
   setupPLL();
@@ -69,13 +85,16 @@ void Display::update() {
     memset(prepBuffer, 0, sizeof(dmaBufferData[0]));
     for (uint8_t x = 0; x < width; x++) {
       for (uint8_t y = 0; y < height; y++) {
+        const uint8_t cube_x = mapPhysicalXToCubeX(x);
+        const uint8_t cube_y = mapPhysicalYToCubeY(y);
         uint8_t led = 0x7F - (x << 4 & 0x30) - (((0x10 - (x & 1)) ^ y) & 0x0F);
         for (uint8_t z = 0; z < depth; z++) {
+          const uint8_t cube_z = mapPhysicalZToCubeZ(x, z);
           led = 0x7F - led;
           uint32_t *offset = prepBuffer + led * BITCOUNT;
           uint8_t chn = (x >> 1 & 0x0E) + (z << 1 & 0xF8) + (z >> 1 & 1);
-          uint32_t value = cube[cubeBuffer][x][y][z]
-                               .blend(motionBlur, cube[1 - cubeBuffer][x][y][z])
+          uint32_t value = cube[cubeBuffer][cube_x][cube_y][cube_z]
+                               .blend(motionBlur, cube[1 - cubeBuffer][cube_x][cube_y][cube_z])
                                .scale(brightness)
                                .bits();
           value = (value << (1 + chn)) | (value >> (31 - chn));
