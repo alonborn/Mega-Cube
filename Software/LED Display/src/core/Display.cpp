@@ -21,7 +21,7 @@ static uint8_t mapPhysicalXToCubeX(uint8_t x) {
   return (3 - (x >> 2)) * 4 + (x & 0x03);
 }
 
-static uint8_t mapPhysicalYToCubeY(uint8_t y) { return 15 - y; }
+static uint8_t mapPhysicalYToCubeY(uint8_t y) { return y; }
 
 static uint8_t mapPhysicalZToCubeZ(uint8_t x, uint8_t z) {
   if (x >= 4 && x < 8 && (z < 4 || (z >= 8 && z < 12))) {

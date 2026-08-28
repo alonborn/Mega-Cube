@@ -8,6 +8,28 @@ Config config;
 
 static Timer print_interval = 2.0f;
 
+static void configureAnimationShow() {
+  config.animation.play_one = true;
+  config.animation.animation = 16;
+
+  config.animation.accelerometer.runtime = 15.0f;
+  config.animation.arrows.runtime = 15.0f;
+  config.animation.atoms.runtime = 15.0f;
+  config.animation.cube.runtime = 15.0f;
+  config.animation.fireworks.runtime = 15.0f;
+  config.animation.helix.runtime = 15.0f;
+  config.animation.life.runtime = 15.0f;
+  config.animation.mario.runtime = 15.0f;
+  config.animation.plasma.runtime = 15.0f;
+  config.animation.pong.runtime = 15.0f;
+  config.animation.arc_scroller.runtime = 15.0f;
+  config.animation.box_scroller.runtime = 15.0f;
+  config.animation.sinus.runtime = 15.0f;
+  config.animation.spectrum.runtime = 15.0f;
+  config.animation.starfield.runtime = 15.0f;
+  config.animation.twinkels.runtime = 15.0f;
+}
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);
@@ -20,6 +42,8 @@ void setup() {
   Serial1.addMemoryForWrite(write_buffer, sizeof(write_buffer));
 
   ESP8266::request_time();
+
+  configureAnimationShow();
 
   Animation::begin();
 }

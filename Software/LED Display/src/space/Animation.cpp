@@ -11,10 +11,12 @@
 #include "PlateSweep.h"
 #include "Plasma.h"
 #include "Pong.h"
+#include "RGBTest.h"
 #include "Scroller.h"
 #include "Sinus.h"
 #include "Spectrum.h"
 #include "Starfield.h"
+#include "TheMatrix.h"
 #include "Twinkels.h"
 #include "Cube.h"
 /*------------------------------------------------------------------------------
@@ -38,19 +40,22 @@ Mario mario;
 PlateSweep plate_sweep;
 Plasma plasma;
 Pong pong;
+RGBTest rgb_test;
 Scroller scroller;
 Sinus sinus;
 Spectrum spectrum;
 Starfield starfield;
+TheMatrix the_matrix;
 Twinkels twinkels;
 Cube cube;
 
-Animation *Animations[] = {&plate_sweep, &ledtest,  &atoms,        &sinus,
-                           &starfield,
+Animation *Animations[] = {&plate_sweep, &ledtest,  &rgb_test,     &atoms,
+                           &sinus,       &starfield,
                            &fireworks1,
                            &fireworks2, &twinkels, &helix,        &arrows,
                            &plasma,     &mario,    &life,         &pong,
-                           &spectrum,   &scroller, &accelerometer, &cube};
+                           &spectrum,   &scroller, &accelerometer, &cube,
+                           &the_matrix};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -128,6 +133,7 @@ jump_item_t Animation::get_item(uint16_t index) {
   const jump_item_t jump_table[] = {
       {"Plate Sweep", "Moving 16x16 plate mapping test", 0, &plate_sweep},
       {"All LEDs Test", "All LEDs color and sweep test", 0, &ledtest},
+      {"RGB Test", "Full cube red green blue test", 0, &rgb_test},
       {"Accelerometer", "Test accelerometer", 0, &accelerometer},
       {"Arrows", "Moving arrows", 0, &arrows},
       {"Atoms", "Electons arround nucleas", 0, &atoms},
@@ -142,6 +148,7 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Sinus", "3D Wave Function", 0, &sinus},
       {"Spectrum", "WiFi Spectrum Analyser", 0, &spectrum},
       {"Starfield", "To boldly go...", 0, &starfield},
+      {"The Matrix", "Falling green digital rain", 0, &the_matrix},
       {"Fairylights", "Beautifull fairylights", &TWINKELS1, &twinkels},
       {"Multilights", "Multicolor fairylights", &TWINKELS2, &twinkels},
       {0, 0, 0, 0}};

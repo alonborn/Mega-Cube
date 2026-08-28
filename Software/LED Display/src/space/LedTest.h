@@ -10,11 +10,16 @@ class LedTest : public Animation {
  public:
   void init() {
     state = state_t::RUNNING;
+    timer_running = 15.0f;
     phase = 0;
   }
 
   void draw(float dt) {
     setMotionBlur(0);
+    if (timer_running.update()) {
+      state = state_t::INACTIVE;
+      return;
+    }
     phase += dt;
 
     const uint8_t base_brightness = 48;
