@@ -17,17 +17,18 @@ class PlateSweep : public Animation {
     setMotionBlur(0);
     phase += dt;
 
-    const float seconds_per_plate = 2.0f;
+    const float seconds_per_plate = 0.7f;
     const uint16_t step = phase / seconds_per_plate;
     const uint8_t axis = 2;
     const uint8_t plate = step & 0x0F;
     const uint8_t x_plate = (3 - (plate >> 2)) * 4 + (plate & 0x03);
+    const uint8_t y_plate = 15 - plate;
 
     Color color;
     if (axis == 0) {
       color = Color(120, 0, 0);
     } else if (axis == 1) {
-      color = Color(0, 120, 0);
+      color = Color(120, 0, 0);
     } else {
       color = Color(0, 0, 120);
     }
@@ -40,9 +41,12 @@ class PlateSweep : public Animation {
               (plate < 4 || (plate >= 8 && plate < 12))) {
             z_plate = (plate & 0x0C) | ((plate + 2) & 0x03);
           }
+          if (axis == 2 && x >= 4 && plate >= 12) {
+            z_plate = (plate & 0x0C) | ((plate + 2) & 0x03);
+          }
 
           if ((axis == 0 && x == x_plate) ||
-              (axis == 1 && y == plate) ||
+              (axis == 1 && y == y_plate) ||
               (axis == 2 && z == z_plate)) {
             voxel(x, y, z, color);
           }
