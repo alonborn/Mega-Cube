@@ -15,6 +15,7 @@
 #include "Scroller.h"
 #include "Sinus.h"
 #include "Spectrum.h"
+#include "SpottedSphere.h"
 #include "Starfield.h"
 #include "TheMatrix.h"
 #include "Twinkels.h"
@@ -44,6 +45,7 @@ RGBTest rgb_test;
 Scroller scroller;
 Sinus sinus;
 Spectrum spectrum;
+SpottedSphere spotted_sphere;
 Starfield starfield;
 TheMatrix the_matrix;
 Twinkels twinkels;
@@ -54,7 +56,8 @@ Animation *Animations[] = {&plate_sweep, &ledtest,  &rgb_test,     &atoms,
                            &fireworks1,
                            &fireworks2, &twinkels, &helix,        &arrows,
                            &plasma,     &mario,    &life,         &pong,
-                           &spectrum,   &scroller, &accelerometer, &cube,
+                           &spectrum,   &spotted_sphere,
+                           &scroller,   &accelerometer, &cube,
                            &the_matrix};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
@@ -147,6 +150,7 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Scroller", "Circulair text scroller ", &SCROLLER, &scroller},
       {"Sinus", "3D Wave Function", 0, &sinus},
       {"Spectrum", "WiFi Spectrum Analyser", 0, &spectrum},
+      {"Spotted Sphere", "Accelerating spotted sphere", 0, &spotted_sphere},
       {"Starfield", "To boldly go...", 0, &starfield},
       {"The Matrix", "Falling green digital rain", 0, &the_matrix},
       {"Fairylights", "Beautifull fairylights", &TWINKELS1, &twinkels},
