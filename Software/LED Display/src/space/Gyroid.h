@@ -11,12 +11,18 @@ class Gyroid : public Animation {
  public:
   void init() {
     state = state_t::RUNNING;
+    timer_running = 15.0f;
     phase = 0;
     hue = 0;
   }
 
   void draw(float dt) {
     setMotionBlur(70);
+    if (timer_running.update()) {
+      state = state_t::INACTIVE;
+      return;
+    }
+
     phase += dt;
     hue += dt * 92.0f;
 

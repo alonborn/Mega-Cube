@@ -136,6 +136,12 @@ void TWINKELS1() {
 }
 void TWINKELS2() { twinkels.set_mode(false, true); }
 
+static bool is_sequence_animation(const jump_item_t &jump) {
+  return jump.object && jump.object != &plate_sweep && jump.object != &ledtest &&
+         jump.object != &rgb_test && jump.object != &white_test &&
+         jump.object != &accelerometer;
+}
+
 jump_item_t Animation::get_item(uint16_t index) {
   const jump_item_t jump_table[] = {
       {"Plate Sweep", "Moving 16x16 plate mapping test", 0, &plate_sweep},
@@ -183,8 +189,8 @@ void Animation::next(bool play_one, uint16_t index) {
   else {
     // Play the next animation from the sequence
     jump_item_t jump = get_item(animation_sequence++);
-    if (!jump.object) {
-      animation_sequence = 0;
+    while (!is_sequence_animation(jump)) {
+      if (!jump.object) animation_sequence = 0;
       jump = get_item(animation_sequence++);
     }
     if (jump.object) {

@@ -17,6 +17,7 @@ class SpottedSphere : public Animation {
  public:
   void init() {
     state = state_t::RUNNING;
+    timer_running = 15.0f;
     angle = 0;
     time = 0;
 
@@ -36,6 +37,11 @@ class SpottedSphere : public Animation {
 
   void draw(float dt) {
     setMotionBlur(80);
+    if (timer_running.update()) {
+      state = state_t::INACTIVE;
+      return;
+    }
+
     time += dt;
 
     const float cycle = 12.0f;
