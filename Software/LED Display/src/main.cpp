@@ -1,79 +1,130 @@
 #include <Arduino.h>
+#include <math.h>
 
-static const uint8_t DIN = 8;
-static const uint8_t WCK = 9;
-static const uint8_t BCK = 10;
-static const uint16_t LEDS_PER_CHANNEL = 128;
-static const uint8_t BITS_PER_LED = 24;
-static uint8_t frame = 0;
+#include "core/Display.h"
+#include "core/Graphics.h"
+#include "power/Math8.h"
 
-static inline void latchAllChannels(bool high) {
-  for (uint8_t i = 0; i < 32; i++) {
-    digitalWriteFast(DIN, high ? HIGH : LOW);
-    digitalWriteFast(BCK, HIGH);
-    digitalWriteFast(BCK, LOW);
-  }
+static constexpr float RESOLUTION = 30.0f;
+static constexpr float RADIUS = 7.5f;
+static constexpr float PHASE_SPEED = PI;
+static constexpr int16_t HUE_SPEED = -50 * 255;
+static constexpr uint8_t BRIGHTNESS = 200;
+static constexpr bool RUN_CHANNEL_TEST = false;
+static constexpr bool RUN_DEPTH_TEST = true;
+static constexpr uint32_t CHANNEL_INTERVAL_MS = 2000;
+static constexpr uint32_t PLANE_INTERVAL_MS = 3000;
 
-  digitalWriteFast(WCK, HIGH);
-  digitalWriteFast(WCK, LOW);
-}
+static float phase = 0.0f;
+static int16_t hue16 = 0;
+static uint32_t previous_frame_us = 0;
+static uint32_t fps_started_ms = 0;
+static uint32_t frame_count = 0;
+static uint32_t channel_started_ms = 0;
+static uint8_t current_channel = 30;
+static bool channel_frame_pending = true;
+static uint32_t plane_started_ms = 0;
+static uint8_t current_plane = 15;
+static bool plane_frame_pending = true;
 
-static void sendPulse(bool value) {
-  // PL9823 waveform:
-  // 0-bit = high, low,  low,  low
-  // 1-bit = high, data, data, low
-  latchAllChannels(true);
-  latchAllChannels(value);
-  latchAllChannels(value);
-  latchAllChannels(false);
-}
+static void drawWave(float dt) {
+  phase += dt * PHASE_SPEED;
+  hue16 += static_cast<int16_t>(dt * HUE_SPEED);
 
-static void sendPl9823Frame() {
-  noInterrupts();
-  for (uint16_t led = 0; led < LEDS_PER_CHANNEL; led++) {
-    const bool active_led = ((led + frame) & 0x0F) < 8;
-    const uint8_t red = active_led ? 24 : 0;
-    const uint8_t green = active_led ? 0 : 24;
-    const uint8_t blue = ((led >> 4) & 1) ? 24 : 0;
-    const uint32_t color = ((uint32_t)red << 16) |
-                           ((uint32_t)green << 8) |
-                           blue;
-
-    for (uint8_t bit = 0; bit < BITS_PER_LED; bit++) {
-      sendPulse(color & (0x800000 >> bit));
+  const Quaternion rotation(phase * 10.0f, Vector3(1, 1, 1));
+  for (uint16_t x = 0; x <= RESOLUTION; ++x) {
+    const float xprime = mapf(x, 0, RESOLUTION, -2, 2);
+    for (uint16_t z = 0; z <= RESOLUTION; ++z) {
+      const float zprime = mapf(z, 0, RESOLUTION, -2, 2);
+      const float y = sinf(phase + sqrtf(xprime * xprime + zprime * zprime));
+      Vector3 point(2 * (x / RESOLUTION) - 1,
+                    2 * (z / RESOLUTION) - 1,
+                    y);
+      point = rotation.rotate(point) * RADIUS;
+      Color color((hue16 >> 8) + static_cast<int8_t>(y * 64),
+                  RainbowGradientPalette);
+      radiate(point, color.scale(BRIGHTNESS), 1.0f);
     }
   }
-  latchAllChannels(false);
-  interrupts();
-
-  delayMicroseconds(300);
 }
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(DIN, OUTPUT);
-  pinMode(WCK, OUTPUT);
-  pinMode(BCK, OUTPUT);
-
-  digitalWrite(DIN, LOW);
-  digitalWrite(WCK, LOW);
-  digitalWrite(BCK, LOW);
-
   Serial.begin(115200);
+
+  Display::begin();
+  Display::setMotionBlur(0);
+  Display::setBrightness(255);
+  previous_frame_us = micros();
+  fps_started_ms = millis();
+  channel_started_ms = millis();
+  plane_started_ms = millis();
+  if (RUN_CHANNEL_TEST) {
+    Serial.println("FlexIO DMA: physical channel test 30/31");
+  } else if (RUN_DEPTH_TEST) {
+    Serial.println("FlexIO DMA: rear-to-front Z plane test");
+  } else {
+    Serial.println("FlexIO DMA: 3D sine wave");
+  }
 }
 
 void loop() {
-  sendPl9823Frame();
-  frame++;
+  if (RUN_CHANNEL_TEST) {
+    const uint32_t now_ms = millis();
+    if (now_ms - channel_started_ms >= CHANNEL_INTERVAL_MS) {
+      channel_started_ms += CHANNEL_INTERVAL_MS;
+      current_channel = current_channel == 30 ? 31 : 30;
+      channel_frame_pending = true;
+    }
+    if (channel_frame_pending && Display::available()) {
+      Display::testChannel(current_channel, 0xFFFFFF00u);
+      Serial.printf("CHANNEL %u\n", current_channel);
+      channel_frame_pending = false;
+    }
+    return;
+  }
 
-  digitalWrite(LED_BUILTIN, HIGH);
-  Serial.println("PL9823 bit-bang tower test: ON");
-  delay(250);
+  if (RUN_DEPTH_TEST) {
+    const uint32_t now_ms = millis();
+    if (now_ms - plane_started_ms >= PLANE_INTERVAL_MS) {
+      plane_started_ms += PLANE_INTERVAL_MS;
+      current_plane = current_plane == 0 ? 15 : current_plane - 1;
+      plane_frame_pending = true;
+    }
+    if (plane_frame_pending && Display::available()) {
+      Display::clear();
+      const Color plane_color =
+          current_plane == 15 ? Color::RED : Color::WHITE;
+      for (uint8_t x = 0; x < Display::width; ++x) {
+        for (uint8_t y = 0; y < Display::height; ++y) {
+          voxel(x, y, current_plane, plane_color);
+        }
+      }
+      Display::update();
+      Serial.printf("Z PLANE %u\n", current_plane);
+      plane_frame_pending = false;
+    }
+    return;
+  }
 
-  sendPl9823Frame();
-  frame++;
+  if (!Display::available()) return;
 
-  digitalWrite(LED_BUILTIN, LOW);
-  Serial.println("PL9823 bit-bang tower test: OFF");
-  delay(250);
+  const uint32_t now_us = micros();
+  const float dt = (now_us - previous_frame_us) * 0.000001f;
+  previous_frame_us = now_us;
+
+  Display::clear();
+  drawWave(dt);
+  Display::update();
+  ++frame_count;
+
+  const uint32_t now_ms = millis();
+  if (now_ms - fps_started_ms >= 2000) {
+    const float fps = frame_count * 1000.0f / (now_ms - fps_started_ms);
+    Serial.printf("3D sine wave FPS=%1.2f DMA_ERR=%lx SHIFTERR=%lx\n",
+                  fps, (unsigned long)DMA_ERR,
+                  (unsigned long)(IMXRT_FLEXIO2_S.SHIFTERR & 0x0F));
+    frame_count = 0;
+    fps_started_ms = now_ms;
+  }
 }

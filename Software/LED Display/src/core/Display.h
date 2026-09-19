@@ -40,16 +40,21 @@ class Display {
   // Hardware setup for RAM, PLL, FLEXIO and DMA
   static void setupRAM();
   static void setupPLL();
-  static void setupFIO();
+  static void setupFIO(bool useDMA = true);
   static void setupDMA();
   // DMA transfer complete ISR, this flips the dma with the prep buffer
   static void interruptAtCompletion();
   // Instance method for interruptAtCompletion
   static void displayReady();
+  static void prepareFrame();
+  static const uint16_t FRAME_WORDS = BITCOUNT * LEDCOUNT + 200;
+  static uint32_t pulseBuffer[2][FRAME_WORDS][4];
   // Buffer currently being used by dma
   static volatile uint8_t dmaBuffer;
   // Double buffered dma and prep data to prevent display artifacts
   static uint32_t dmaBufferData[2][BITCOUNT * LEDCOUNT];
+  static uint32_t dmaBufferDataLow[BITCOUNT * LEDCOUNT];
+  static uint32_t dmaBufferDataSecond[2][BITCOUNT * LEDCOUNT];
   // Dma buffer for high signal and reset/latch low signal
   static uint32_t dmaBufferHigh[1];
   static uint32_t dmaBufferLow[50];
@@ -63,8 +68,14 @@ class Display {
  public:
   // Do not use a class contructor to start the display (Arduino compatibility)
   static void begin();
+  static void beginPolledTest();
+  static bool testAllChannelsPolled(uint32_t color_bits, uint32_t &shift_errors);
   // Notifies the display that a frame is ready for displaying
   static void update();
+  // Debug: send identical PL9823 data to all 32 physical channels.
+  static void testAllChannels(uint32_t color_bits);
+  // Debug: send PL9823 data to one physical channel only.
+  static void testChannel(uint8_t channel, uint32_t color_bits);
   // Check if the display is available to accept a new frame
   static bool available();
   // Clear the cube so a new frame can be created fresh
