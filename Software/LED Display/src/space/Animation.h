@@ -35,6 +35,8 @@
 #define ANIMATION_SUPERNOVA 21
 #define ANIMATION_AURORA 22
 #define ANIMATION_BLACK_HOLE 23
+#define ANIMATION_METABALLS 24
+#define ANIMATION_ELECTRIC_STORM 25
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE

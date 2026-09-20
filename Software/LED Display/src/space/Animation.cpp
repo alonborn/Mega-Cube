@@ -7,11 +7,13 @@
 #include "BlackHole.h"
 #include "ChannelColorTest.h"
 #include "ChannelTest.h"
+#include "ElectricStorm.h"
 #include "Fireworks.h"
 #include "Helix.h"
 #include "LedTest.h"
 #include "Life.h"
 #include "Mario.h"
+#include "Metaballs.h"
 #include "Plasma.h"
 #include "Pong.h"
 #include "Scroller.h"
@@ -39,12 +41,14 @@ Aurora aurora;
 BlackHole black_hole;
 ChannelColorTest channelcolortest;
 ChannelTest channeltest;
+ElectricStorm electric_storm;
 Fireworks fireworks1;
 Fireworks fireworks2;
 Helix helix;
 LedTest ledtest;
 Life life;
 Mario mario;
+Metaballs metaballs;
 Plasma plasma;
 Pong pong;
 Scroller scroller;
@@ -63,7 +67,8 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &plasma,     &mario,    &life,         &pong,
                            &spectrum,   &scroller, &accelerometer, &cube,
                            &channeltest, &channelcolortest, &the_matrix,
-                           &spotted_sphere, &supernova, &aurora, &black_hole};
+                           &spotted_sphere, &supernova, &aurora, &black_hole,
+                           &metaballs, &electric_storm};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -167,6 +172,9 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Aurora", "Flowing curtains of colored light", 0, &aurora},
       {"Black Hole", "Spinning accretion disk and energy jets", 0,
        &black_hole},
+      {"Metaballs", "Organic merging spheres of light", 0, &metaballs},
+      {"Electric Storm", "Branching lightning across the cube", 0,
+       &electric_storm},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)
