@@ -17,6 +17,7 @@
 #include "Spectrum.h"
 #include "SpottedSphere.h"
 #include "Starfield.h"
+#include "Supernova.h"
 #include "TheMatrix.h"
 #include "Twinkels.h"
 #include "Cube.h"
@@ -47,6 +48,7 @@ Sinus sinus;
 Spectrum spectrum;
 SpottedSphere spotted_sphere;
 Starfield starfield;
+Supernova supernova;
 TheMatrix the_matrix;
 Twinkels twinkels;
 Cube cube;
@@ -57,7 +59,7 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &plasma,     &mario,    &life,         &pong,
                            &spectrum,   &scroller, &accelerometer, &cube,
                            &channeltest, &channelcolortest, &the_matrix,
-                           &spotted_sphere};
+                           &spotted_sphere, &supernova};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -156,6 +158,8 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"The Matrix", "Falling green digital rain", 0, &the_matrix},
       {"Spotted Sphere", "Accelerating spotted sphere", 0,
        &spotted_sphere},
+      {"Supernova", "Collapsing star and expanding shockwave", 0,
+       &supernova},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

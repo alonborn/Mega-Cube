@@ -32,6 +32,7 @@
 #define ANIMATION_CHANNEL_COLOR_TEST 18
 #define ANIMATION_THE_MATRIX 19
 #define ANIMATION_SPOTTED_SPHERE 20
+#define ANIMATION_SUPERNOVA 21
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE
