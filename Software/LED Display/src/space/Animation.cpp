@@ -3,6 +3,7 @@
 #include "Accelerometer.h"
 #include "Arrows.h"
 #include "Atoms.h"
+#include "Aurora.h"
 #include "ChannelColorTest.h"
 #include "ChannelTest.h"
 #include "Fireworks.h"
@@ -33,6 +34,7 @@ uint16_t Animation::animation_sequence = 0;
 Accelerometer accelerometer;
 Arrows arrows;
 Atoms atoms;
+Aurora aurora;
 ChannelColorTest channelcolortest;
 ChannelTest channeltest;
 Fireworks fireworks1;
@@ -59,7 +61,7 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &plasma,     &mario,    &life,         &pong,
                            &spectrum,   &scroller, &accelerometer, &cube,
                            &channeltest, &channelcolortest, &the_matrix,
-                           &spotted_sphere, &supernova};
+                           &spotted_sphere, &supernova, &aurora};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -160,6 +162,7 @@ jump_item_t Animation::get_item(uint16_t index) {
        &spotted_sphere},
       {"Supernova", "Collapsing star and expanding shockwave", 0,
        &supernova},
+      {"Aurora", "Flowing curtains of colored light", 0, &aurora},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

@@ -5,30 +5,38 @@
 
 class Supernova : public Animation {
  private:
-  static const uint16_t PARTICLES = 180;
-  static constexpr float COLLAPSE_END = 2.7f;
-  static constexpr float FLASH_END = 2.95f;
-  static constexpr float ANIMATION_END = 8.5f;
+  static const uint16_t PARTICLES = 320;
+  static constexpr float COLLAPSE_END = 4.5f;
+  static constexpr float FLASH_END = 5.15f;
+  static constexpr float EMISSION_DURATION = 10.0f;
+  static constexpr float ANIMATION_END = 16.2f;
 
   Particle particles[PARTICLES];
   float age = 0.0f;
   uint8_t base_hue = 0;
   bool exploded = false;
+  uint16_t next_particle = 0;
+  float emission_accumulator = 0.0f;
+
+  void spawnParticle(uint16_t index, float min_speed, float max_speed,
+                     float min_lifetime, float max_lifetime) {
+    Vector3 direction(noise.nextRandom(-1.0f, 1.0f),
+                      noise.nextRandom(-1.0f, 1.0f),
+                      noise.nextRandom(-1.0f, 1.0f));
+    if (direction.magnitude() < 0.05f) direction = Vector3::X;
+    direction.normalize();
+
+    particles[index] = Particle(
+        direction * noise.nextRandom(0.0f, 0.45f),
+        direction * noise.nextRandom(min_speed, max_speed),
+        static_cast<uint8_t>(base_hue + random(0, 72)), 1.0f,
+        noise.nextRandom(min_lifetime, max_lifetime));
+  }
 
   void explode() {
     exploded = true;
     for (uint16_t i = 0; i < PARTICLES; ++i) {
-      Vector3 direction(noise.nextRandom(-1.0f, 1.0f),
-                        noise.nextRandom(-1.0f, 1.0f),
-                        noise.nextRandom(-1.0f, 1.0f));
-      if (direction.magnitude() < 0.05f) direction = Vector3::X;
-      direction.normalize();
-
-      const float speed = noise.nextRandom(2.8f, 8.5f);
-      particles[i] = Particle(direction * noise.nextRandom(0.0f, 0.7f),
-                              direction * speed,
-                              static_cast<uint8_t>(base_hue + random(0, 72)),
-                              1.0f, noise.nextRandom(2.0f, 5.0f));
+      spawnParticle(i, 2.8f, 8.5f, 2.0f, 5.0f);
     }
   }
 
@@ -55,6 +63,8 @@ class Supernova : public Animation {
     age = 0.0f;
     base_hue = random(0, 256);
     exploded = false;
+    next_particle = 0;
+    emission_accumulator = 0.0f;
     setMotionBlur(150);
   }
 
@@ -76,9 +86,13 @@ class Supernova : public Animation {
     if (!exploded) explode();
 
     if (age < FLASH_END) {
-      const float flash = 1.0f - (age - COLLAPSE_END) /
-                                    (FLASH_END - COLLAPSE_END);
-      radiate(Vector3(0, 0, 0), Color::WHITE, 7.8f * flash + 1.0f);
+      const float flash_progress =
+          (age - COLLAPSE_END) / (FLASH_END - COLLAPSE_END);
+      const float radius = 2.0f + 12.0f * flash_progress;
+      const uint8_t flash_brightness = static_cast<uint8_t>(
+          255.0f * (1.0f - 0.55f * flash_progress));
+      radiate(Vector3(0, 0, 0),
+              Color::WHITE.scaled(flash_brightness), radius);
     }
 
     const float explosion_age = age - COLLAPSE_END;
@@ -89,6 +103,25 @@ class Supernova : public Animation {
       Color shell_color(static_cast<uint8_t>(base_hue + shell_radius * 8),
                         RainbowGradientPalette);
       drawShell(shell_radius, 0.8f, shell_color.scale(shell_brightness));
+    }
+
+    const float emission_age = age - FLASH_END;
+    if (emission_age >= 0.0f && emission_age < EMISSION_DURATION) {
+      const bool emitting = (static_cast<uint8_t>(emission_age) & 1u) == 0;
+      if (emitting) {
+        emission_accumulator += dt * 150.0f;
+        while (emission_accumulator >= 1.0f) {
+          spawnParticle(next_particle, 6.0f, 13.0f, 1.2f, 2.4f);
+          next_particle = (next_particle + 1) % PARTICLES;
+          emission_accumulator -= 1.0f;
+        }
+      }
+
+      const uint8_t core_brightness = static_cast<uint8_t>(
+          (emitting ? 150.0f : 65.0f) +
+          (emitting ? 105.0f : 45.0f) *
+              (0.5f + 0.5f * sinf(age * 24.0f)));
+      radiate4(Vector3(0, 0, 0), Color::WHITE.scaled(core_brightness), 1.5f);
     }
 
     for (uint16_t i = 0; i < PARTICLES; ++i) {
