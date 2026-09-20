@@ -3,6 +3,8 @@
 #include "Accelerometer.h"
 #include "Arrows.h"
 #include "Atoms.h"
+#include "ChannelColorTest.h"
+#include "ChannelTest.h"
 #include "Fireworks.h"
 #include "Helix.h"
 #include "LedTest.h"
@@ -28,6 +30,8 @@ uint16_t Animation::animation_sequence = 0;
 Accelerometer accelerometer;
 Arrows arrows;
 Atoms atoms;
+ChannelColorTest channelcolortest;
+ChannelTest channeltest;
 Fireworks fireworks1;
 Fireworks fireworks2;
 Helix helix;
@@ -47,7 +51,8 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &fireworks1,
                            &fireworks2, &twinkels, &helix,        &arrows,
                            &plasma,     &mario,    &life,         &pong,
-                           &spectrum,   &scroller, &accelerometer, &cube};
+                           &spectrum,   &scroller, &accelerometer, &cube,
+                           &channeltest, &channelcolortest};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -140,6 +145,9 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Starfield", "To boldly go...", 0, &starfield},
       {"Fairylights", "Beautifull fairylights", &TWINKELS1, &twinkels},
       {"Multilights", "Multicolor fairylights", &TWINKELS2, &twinkels},
+      {"Channel Test", "Physical channels 0 through 31", 0, &channeltest},
+      {"Channel Color Test", "Fast colors on physical channels", 0,
+       &channelcolortest},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

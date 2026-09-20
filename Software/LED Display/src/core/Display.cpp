@@ -218,10 +218,15 @@ void Display::testChannel(uint8_t channel, uint32_t color_bits) {
 void Display::prepareFrame() {
   const uint8_t next = 1 - dmaBuffer;
   for (uint16_t bit = 0; bit < BITCOUNT * LEDCOUNT; ++bit) {
+    // Narrow-pulse WCK starts its 32-channel cycle 17 positions later than
+    // the former square wave. Rotate the serialized channel word so logical
+    // and physical channel numbering remains unchanged.
+    const uint32_t channelData = dmaBufferData[next][bit];
+    const uint32_t alignedData = (channelData << 17) | (channelData >> 15);
     pulseBuffer[next][bit][0] = 0xFFFFFFFF;
-    pulseBuffer[next][bit][1] = dmaBufferData[next][bit];
+    pulseBuffer[next][bit][1] = alignedData;
 #if defined PL9823
-    pulseBuffer[next][bit][2] = dmaBufferData[next][bit];
+    pulseBuffer[next][bit][2] = alignedData;
 #else
     pulseBuffer[next][bit][2] = 0;
 #endif
@@ -431,8 +436,9 @@ void Display::setupFIO(bool useDMA) {
       FLEXIO_TIMCTL_PINSEL(11) |
       // Latch phase that keeps all 32 channel positions correctly aligned.
       FLEXIO_TIMCTL_PINPOL |
-      // Timer mode -> single 16-bit counter mode
-      FLEXIO_TIMCTL_TIMOD(3);
+      // Timer mode -> dual 8-bit PWM mode. A narrow WCK pulse avoids an
+      // unnecessary edge halfway through the 32-channel shift cycle.
+      FLEXIO_TIMCTL_TIMOD(2);
 
   // Timer compare 50.5.1.22 page 2937
   // The upper 8 bits configure the number of bits = (cmp[15:8] + 1) / 2
@@ -440,13 +446,9 @@ void Display::setupFIO(bool useDMA) {
   // bits The lower 8 bits configure baud rate divider = (cmp[ 7:0] + 1)
   // * 2 Lower 8 bits -> (0 + 1) * 2 -> divide frequency by 2
   IMXRT_FLEXIO2_S.TIMCMP[0] = 0x0000FF00;
-  // Timer compare 50.3.3.3 page 2891
-  // Configure baud rate of the shift clock (cmp[15:0] + 1) * 2
-  // -> (31 + 1) * 2 -> divide frequency by 64
-  // When the counter equals zero and decrements the timer output
-  // toggles Pulses generated -> 32 pulses of TIMER0 and 1 pulse of
-  // TIMER1
-  IMXRT_FLEXIO2_S.TIMCMP[1] = 0x0000001F;
+  // 63 FlexIO clocks low plus one high clock is 64 FlexIO clocks, exactly
+  // one WCK period per 32 BCK pulses.
+  IMXRT_FLEXIO2_S.TIMCMP[1] = 0x0000003E;
 
   // Shiftbuffers 1 & 2 get filled by DMA later. Start with all zero's
   // to reset/latch the led's. See 50.5.1.6.3 page 2918 for DMA
