@@ -15,7 +15,9 @@
 #include "Scroller.h"
 #include "Sinus.h"
 #include "Spectrum.h"
+#include "SpottedSphere.h"
 #include "Starfield.h"
+#include "TheMatrix.h"
 #include "Twinkels.h"
 #include "Cube.h"
 /*------------------------------------------------------------------------------
@@ -43,7 +45,9 @@ Pong pong;
 Scroller scroller;
 Sinus sinus;
 Spectrum spectrum;
+SpottedSphere spotted_sphere;
 Starfield starfield;
+TheMatrix the_matrix;
 Twinkels twinkels;
 Cube cube;
 
@@ -52,7 +56,8 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &fireworks2, &twinkels, &helix,        &arrows,
                            &plasma,     &mario,    &life,         &pong,
                            &spectrum,   &scroller, &accelerometer, &cube,
-                           &channeltest, &channelcolortest};
+                           &channeltest, &channelcolortest, &the_matrix,
+                           &spotted_sphere};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -148,6 +153,9 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Channel Test", "Physical channels 0 through 31", 0, &channeltest},
       {"Channel Color Test", "Fast colors on physical channels", 0,
        &channelcolortest},
+      {"The Matrix", "Falling green digital rain", 0, &the_matrix},
+      {"Spotted Sphere", "Accelerating spotted sphere", 0,
+       &spotted_sphere},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

@@ -13,7 +13,7 @@ void setup() {
   Serial.begin(115200);
 
   config.animation.play_one = true;
-  config.animation.animation = 12;  // Sinus
+  config.animation.animation = ANIMATION_SPOTTED_SPHERE;
   Animation::begin();
   Serial.println("FlexIO DMA: Sinus animation");
 }

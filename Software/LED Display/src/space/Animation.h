@@ -10,6 +10,29 @@
 #include "power/Noise.h"
 #include "power/Particle.h"
 #include "power/Timer.h"
+
+#define ANIMATION_LED_TEST 0
+#define ANIMATION_ACCELEROMETER 1
+#define ANIMATION_ARROWS 2
+#define ANIMATION_ATOMS 3 //++
+#define ANIMATION_CUBE 4
+#define ANIMATION_FIREWORKS 5
+#define ANIMATION_HELIX 6 //++
+#define ANIMATION_LIFE 7
+#define ANIMATION_MARIO 8
+#define ANIMATION_PLASMA 9
+#define ANIMATION_PONG 10
+#define ANIMATION_SCROLLER 11
+#define ANIMATION_SINUS 12
+#define ANIMATION_SPECTRUM 13
+#define ANIMATION_STARFIELD 14
+#define ANIMATION_FAIRYLIGHTS 15
+#define ANIMATION_MULTILIGHTS 16  //---
+#define ANIMATION_CHANNEL_TEST 17
+#define ANIMATION_CHANNEL_COLOR_TEST 18
+#define ANIMATION_THE_MATRIX 19
+#define ANIMATION_SPOTTED_SPHERE 20
+
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE
  *----------------------------------------------------------------------------*/
