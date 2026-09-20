@@ -13,16 +13,16 @@ void setup() {
   Serial.begin(115200);
 
   config.animation.play_one = true;
-  config.animation.animation = ANIMATION_AURORA;
+  config.animation.animation = ANIMATION_BLACK_HOLE;
   Animation::begin();
-  Serial.println("FlexIO DMA: Aurora animation");
+  Serial.println("FlexIO DMA: Black Hole animation");
 }
 
 void loop() {
   Animation::loop();
 
   if (print_interval.update()) {
-    Serial.printf("Aurora FPS=%1.2f DMA_ERR=%lx SHIFTERR=%lx\n",
+    Serial.printf("Black Hole FPS=%1.2f DMA_ERR=%lx SHIFTERR=%lx\n",
                   Animation::fps(), (unsigned long)DMA_ERR,
                   (unsigned long)(IMXRT_FLEXIO2_S.SHIFTERR & 0x0F));
   }

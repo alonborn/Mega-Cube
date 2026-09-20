@@ -4,6 +4,7 @@
 #include "Arrows.h"
 #include "Atoms.h"
 #include "Aurora.h"
+#include "BlackHole.h"
 #include "ChannelColorTest.h"
 #include "ChannelTest.h"
 #include "Fireworks.h"
@@ -35,6 +36,7 @@ Accelerometer accelerometer;
 Arrows arrows;
 Atoms atoms;
 Aurora aurora;
+BlackHole black_hole;
 ChannelColorTest channelcolortest;
 ChannelTest channeltest;
 Fireworks fireworks1;
@@ -61,7 +63,7 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &plasma,     &mario,    &life,         &pong,
                            &spectrum,   &scroller, &accelerometer, &cube,
                            &channeltest, &channelcolortest, &the_matrix,
-                           &spotted_sphere, &supernova, &aurora};
+                           &spotted_sphere, &supernova, &aurora, &black_hole};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -163,6 +165,8 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Supernova", "Collapsing star and expanding shockwave", 0,
        &supernova},
       {"Aurora", "Flowing curtains of colored light", 0, &aurora},
+      {"Black Hole", "Spinning accretion disk and energy jets", 0,
+       &black_hole},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

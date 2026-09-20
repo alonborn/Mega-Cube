@@ -34,6 +34,7 @@
 #define ANIMATION_SPOTTED_SPHERE 20
 #define ANIMATION_SUPERNOVA 21
 #define ANIMATION_AURORA 22
+#define ANIMATION_BLACK_HOLE 23
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE
