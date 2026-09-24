@@ -37,6 +37,9 @@
 #define ANIMATION_BLACK_HOLE 23
 #define ANIMATION_METABALLS 24
 #define ANIMATION_ELECTRIC_STORM 25
+#define ANIMATION_DNA_TUNNEL 26
+#define ANIMATION_EYE_OF_SAURON 27
+#define ANIMATION_WHITE_TEST 28
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE

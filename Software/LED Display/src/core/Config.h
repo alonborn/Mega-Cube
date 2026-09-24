@@ -45,6 +45,7 @@ struct Config {
     // Do not serialize changed to disk/gui
     boolean changed = false;
     boolean play_one = false;
+    boolean playlist = false;
     // Only serialize animation to disk
     uint8_t animation = 0;
     struct {

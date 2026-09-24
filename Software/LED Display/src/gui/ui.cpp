@@ -135,6 +135,7 @@ void ui_event(lv_event_t* e) {
     switch (type) {
       case 0:  // Change animation
         config.animation.changed = true;
+        config.animation.playlist = false;
         config.animation.play_one = true;
         config.animation.animation = index;
         break;
@@ -144,6 +145,7 @@ void ui_event(lv_event_t* e) {
         break;
       case 2:  // Play All
         config.animation.changed = true;
+        config.animation.playlist = false;
         config.animation.play_one = false;
         break;
     }

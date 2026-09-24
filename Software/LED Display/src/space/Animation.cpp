@@ -1,5 +1,7 @@
 #include "Animation.h"
 
+#include "AnimationPlaylist.h"
+
 #include "Accelerometer.h"
 #include "Arrows.h"
 #include "Atoms.h"
@@ -7,7 +9,9 @@
 #include "BlackHole.h"
 #include "ChannelColorTest.h"
 #include "ChannelTest.h"
+#include "DNATunnel.h"
 #include "ElectricStorm.h"
+#include "EyeOfSauron.h"
 #include "Fireworks.h"
 #include "Helix.h"
 #include "LedTest.h"
@@ -24,6 +28,7 @@
 #include "Supernova.h"
 #include "TheMatrix.h"
 #include "Twinkels.h"
+#include "WhiteTest.h"
 #include "Cube.h"
 /*------------------------------------------------------------------------------
  * ANIMATION STATIC DEFINITIONS
@@ -31,6 +36,11 @@
 Noise Animation::noise = Noise();
 Timer Animation::animation_timer = Timer();
 uint16_t Animation::animation_sequence = 0;
+
+static uint8_t playlist_index = 0;
+static float playlist_elapsed = 0.0f;
+static bool playlist_started = false;
+static bool playlist_was_enabled = false;
 /*------------------------------------------------------------------------------
  * ANIMATION GLOBAL DEFINITIONS
  *----------------------------------------------------------------------------*/
@@ -41,7 +51,9 @@ Aurora aurora;
 BlackHole black_hole;
 ChannelColorTest channelcolortest;
 ChannelTest channeltest;
+DNATunnel dna_tunnel;
 ElectricStorm electric_storm;
+EyeOfSauron eye_of_sauron;
 Fireworks fireworks1;
 Fireworks fireworks2;
 Helix helix;
@@ -59,6 +71,7 @@ Starfield starfield;
 Supernova supernova;
 TheMatrix the_matrix;
 Twinkels twinkels;
+WhiteTest white_test;
 Cube cube;
 
 Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
@@ -68,12 +81,33 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &spectrum,   &scroller, &accelerometer, &cube,
                            &channeltest, &channelcolortest, &the_matrix,
                            &spotted_sphere, &supernova, &aurora, &black_hole,
-                           &metaballs, &electric_storm};
+                           &metaballs, &electric_storm, &dna_tunnel,
+                           &eye_of_sauron, &white_test};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
 // Start display asap to minimize PL9823 blue startup
-void Animation::begin() { Display::begin(); }
+void Animation::begin() {
+  playlist_index = 0;
+  playlist_elapsed = 0.0f;
+  playlist_started = false;
+  playlist_was_enabled = false;
+  Display::begin();
+}
+
+static void startPlaylistItem() {
+  if (ANIMATION_PLAYLIST_SIZE == 0) return;
+
+  const AnimationPlaylistEntry &entry = ANIMATION_PLAYLIST[playlist_index];
+  jump_item_t jump = Animation::get_item(entry.animation_id);
+  if (jump.object) {
+    jump.object->init();
+    jump.object->time_reduction = false;
+    jump.object->timer_running = 0;
+    if (jump.custom_init) jump.custom_init();
+    playlist_started = true;
+  }
+}
 
 // Render an animation frame, but only if the display allows it (non blocking)
 void Animation::loop() {
@@ -81,6 +115,31 @@ void Animation::loop() {
   if (Display::available()) {
     // Update the animation timer to determine frame deltatime
     animation_timer.update();
+    const float dt = animation_timer.dt();
+
+    if (settings.playlist && !playlist_was_enabled) {
+      playlist_index = 0;
+      playlist_elapsed = 0.0f;
+      playlist_started = false;
+    }
+    playlist_was_enabled = settings.playlist;
+
+    if (settings.playlist) {
+      if (!playlist_started) {
+        startPlaylistItem();
+      } else {
+        playlist_elapsed += dt;
+        const float duration =
+            ANIMATION_PLAYLIST[playlist_index].duration_seconds;
+        if (duration <= 0.0f || playlist_elapsed >= duration) {
+          for (uint8_t i = 0; i < ANIMATIONS; ++i)
+            Animations[i]->state = state_t::INACTIVE;
+          playlist_index = (playlist_index + 1) % ANIMATION_PLAYLIST_SIZE;
+          playlist_elapsed = 0.0f;
+          startPlaylistItem();
+        }
+      }
+    }
     // Clear the display before drawing any animations
     Display::clear();
     // Draw all active animations from the animation pool
@@ -88,7 +147,7 @@ void Animation::loop() {
     for (uint8_t i = 0; i < ANIMATIONS; i++) {
       Animation &animation = *Animations[i];
       if (animation.state != state_t::INACTIVE) {
-        animation.draw(animation_timer.dt());
+        animation.draw(dt);
       }
       // Animation can become inactive after drawing so check again
       if (animation.state != state_t::INACTIVE) {
@@ -100,7 +159,12 @@ void Animation::loop() {
     settings.changed = false;
     // Select the next or specific animation from the sequence list
     if (active_animation_count == 0) {
-      Animation::next(settings.play_one, settings.animation);
+      if (settings.playlist) {
+        // Keep the current entry running for its full configured duration.
+        startPlaylistItem();
+      } else {
+        Animation::next(settings.play_one, settings.animation);
+      }
     }
     // Commit current animation frame to the display
     Display::update();
@@ -175,6 +239,12 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Metaballs", "Organic merging spheres of light", 0, &metaballs},
       {"Electric Storm", "Branching lightning across the cube", 0,
        &electric_storm},
+      {"DNA Tunnel", "Double helix moving through a rotating tunnel", 0,
+       &dna_tunnel},
+      {"Eye of Sauron", "A fiery eye sweeping a red searchlight", 0,
+       &eye_of_sauron},
+      {"White Test", "All LEDs fade from black to full white and back", 0,
+       &white_test},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)
