@@ -119,6 +119,12 @@ void Animation::loop() {
     animation_timer.update();
     const float dt = animation_timer.dt();
 
+    if (settings.changed) {
+      for (uint8_t i = 0; i < ANIMATIONS; ++i) {
+        Animations[i]->state = state_t::INACTIVE;
+      }
+    }
+
     if (settings.playlist && !playlist_was_enabled) {
       playlist_index = 0;
       playlist_elapsed = 0.0f;
@@ -154,7 +160,6 @@ void Animation::loop() {
       // Animation can become inactive after drawing so check again
       if (animation.state != state_t::INACTIVE) {
         active_animation_count++;
-        if (settings.changed) animation.end();
       }
     }
     // Clear the settings changed flag. Animations are ended allready

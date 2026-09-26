@@ -8,6 +8,8 @@ Config config;
 
 static Timer print_interval = 2.0f;
 static String controller_line;
+static int16_t pending_animation_reply = -1;
+static bool pending_playlist_reply = false;
 
 static void controllerReply(const String& message) {
   Serial1.println(message);
@@ -28,7 +30,8 @@ static void handleControllerCommand(String command) {
     config.animation.play_one = true;
     config.animation.animation = id;
     config.animation.changed = true;
-    controllerReply("OK ANIMATION " + String(id));
+    pending_animation_reply = id;
+    pending_playlist_reply = false;
     return;
   }
 
@@ -36,7 +39,8 @@ static void handleControllerCommand(String command) {
     config.animation.play_one = false;
     config.animation.playlist = true;
     config.animation.changed = true;
-    controllerReply("OK PLAYLIST");
+    pending_animation_reply = -1;
+    pending_playlist_reply = true;
     return;
   }
 
@@ -89,6 +93,16 @@ void setup() {
 void loop() {
   pollController();
   Animation::loop();
+
+  if (!config.animation.changed) {
+    if (pending_animation_reply >= 0) {
+      controllerReply("OK ANIMATION " + String(pending_animation_reply));
+      pending_animation_reply = -1;
+    } else if (pending_playlist_reply) {
+      controllerReply("OK PLAYLIST");
+      pending_playlist_reply = false;
+    }
+  }
 
   if (print_interval.update()) {
     Serial.printf("Playlist FPS=%1.2f DMA_ERR=%lx SHIFTERR=%lx\n",
