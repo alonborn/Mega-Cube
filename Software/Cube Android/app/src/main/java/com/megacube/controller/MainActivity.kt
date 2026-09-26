@@ -68,6 +68,7 @@ private val animations = listOf(
     AnimationChoice(26, "DNA Tunnel"),
     AnimationChoice(27, "Eye of Sauron"),
     AnimationChoice(28, "White Test"),
+    AnimationChoice(29, "Red Test"),
 )
 
 class MainActivity : ComponentActivity() {

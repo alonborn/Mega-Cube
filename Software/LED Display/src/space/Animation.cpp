@@ -20,6 +20,7 @@
 #include "Metaballs.h"
 #include "Plasma.h"
 #include "Pong.h"
+#include "RedTest.h"
 #include "Scroller.h"
 #include "Sinus.h"
 #include "Spectrum.h"
@@ -72,6 +73,7 @@ Supernova supernova;
 TheMatrix the_matrix;
 Twinkels twinkels;
 WhiteTest white_test;
+RedTest red_test;
 Cube cube;
 
 Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
@@ -82,7 +84,7 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &channeltest, &channelcolortest, &the_matrix,
                            &spotted_sphere, &supernova, &aurora, &black_hole,
                            &metaballs, &electric_storm, &dna_tunnel,
-                           &eye_of_sauron, &white_test};
+                           &eye_of_sauron, &white_test, &red_test};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -245,6 +247,7 @@ jump_item_t Animation::get_item(uint16_t index) {
        &eye_of_sauron},
       {"White Test", "All LEDs fade from black to full white and back", 0,
        &white_test},
+      {"Red Test", "All LEDs pulse red", 0, &red_test},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

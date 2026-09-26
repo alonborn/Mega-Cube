@@ -60,7 +60,9 @@ static void handleControllerCommand(String command) {
 }
 
 static void pollController() {
-  while (Serial1.available()) {
+  // Bound command processing so a noisy UART can never starve animation frames.
+  uint8_t byte_budget = 64;
+  while (byte_budget-- > 0 && Serial1.available()) {
     const char value = Serial1.read();
     if (value == '\n') {
       handleControllerCommand(controller_line);
@@ -76,10 +78,12 @@ void setup() {
   Serial.begin(115200);
   Serial1.begin(115200);
 
-  config.animation.playlist = true;
-  config.animation.play_one = false;
+  config.animation.playlist = false;
+  config.animation.play_one = true;
+  config.animation.animation = ANIMATION_SINUS;
+  config.animation.changed = true;
   Animation::begin();
-  Serial.println("FlexIO DMA: animation playlist");
+  Serial.println("FlexIO DMA: controller command mode");
 }
 
 void loop() {

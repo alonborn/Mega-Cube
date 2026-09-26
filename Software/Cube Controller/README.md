@@ -17,10 +17,12 @@ ILI9341 display with XPT2046 touch, and a UART bridge to the Teensy LED driver.
 | Touch CS | 14 |
 | Touch IRQ | 34 |
 | SD CS | 13 |
-| ESP32 RX from Teensy TX1 | 16 |
-| ESP32 TX to Teensy RX1 | 17 |
+| ESP32 RX2 from Teensy TX1 | 16 |
+| ESP32 TX2 to Teensy RX1 | 17 |
 
 Connect ESP32 and Teensy grounds. Both boards use 3.3 V UART logic.
+UART2 is independent of the ESP32 USB-to-serial bridge, so the controller can
+remain connected to the Teensy while flashing or monitoring over USB.
 
 ## Commands
 
@@ -34,4 +36,3 @@ STATUS
 ```
 
 Build with `/home/alon/.platformio/penv/bin/pio run`.
-

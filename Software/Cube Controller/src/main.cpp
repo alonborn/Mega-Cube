@@ -14,10 +14,13 @@ HardwareSerial teensy(2);
 
 NimBLECharacteristic* statusCharacteristic = nullptr;
 volatile bool phoneConnected = false;
-bool uiDirty = true;
+volatile bool uiDirty = true;
 uint8_t animationId = 22;
+bool playlistActive = false;
+bool playbackConfirmed = false;
 String teensyLine;
-constexpr bool ENABLE_LOCAL_UI = false;
+constexpr bool ENABLE_DISPLAY = true;
+constexpr bool ENABLE_TOUCH = false;
 
 constexpr uint16_t COLOR_BACKGROUND = TFT_BLACK;
 constexpr uint16_t COLOR_PANEL = 0x18E3;
@@ -26,7 +29,7 @@ constexpr uint16_t COLOR_CONNECTED = TFT_GREEN;
 
 void sendToTeensy(const String& command) {
   teensy.println(command);
-  Serial.printf("Teensy <- %s\n", command.c_str());
+  Serial.printf("UART2 -> Teensy: %s\n", command.c_str());
 }
 
 void notifyStatus(const String& status) {
@@ -36,10 +39,43 @@ void notifyStatus(const String& status) {
 }
 
 void selectAnimation(uint8_t id) {
-  animationId = id;
   sendToTeensy("ANIMATION " + String(id));
-  notifyStatus("ANIMATION " + String(id));
-  uiDirty = true;
+}
+
+const char* animationName(uint8_t id) {
+  static const char* const names[] = {
+      "LED TEST",       "ACCELEROMETER", "ARROWS",         "ATOMS",
+      "CUBE",           "FIREWORKS",     "HELIX",          "LIFE",
+      "MARIO",          "PLASMA",        "PONG",           "SCROLLER",
+      "SINUS",          "SPECTRUM",      "STARFIELD",      "FAIRY LIGHTS",
+      "MULTI LIGHTS",   "CHANNEL TEST",  "CHANNEL COLORS", "THE MATRIX",
+      "SPOTTED SPHERE", "SUPERNOVA",     "AURORA",         "BLACK HOLE",
+      "METABALLS",      "ELECTRIC STORM", "DNA TUNNEL",    "EYE OF SAURON",
+      "WHITE TEST",      "RED TEST"};
+  return id < sizeof(names) / sizeof(names[0]) ? names[id] : "UNKNOWN";
+}
+
+void applyTeensyConfirmation(const String& status) {
+  if (status.startsWith("OK ANIMATION ")) {
+    animationId = constrain(status.substring(13).toInt(), 0, 255);
+    playlistActive = false;
+    playbackConfirmed = true;
+    uiDirty = true;
+  } else if (status == "OK PLAYLIST") {
+    playlistActive = true;
+    playbackConfirmed = true;
+    uiDirty = true;
+  } else if (status.startsWith("STATUS ANIMATION ")) {
+    animationId = constrain(status.substring(17).toInt(), 0, 255);
+    playlistActive = false;
+    playbackConfirmed = true;
+    uiDirty = true;
+  } else if (status.startsWith("STATUS PLAYLIST ")) {
+    animationId = constrain(status.substring(16).toInt(), 0, 255);
+    playlistActive = true;
+    playbackConfirmed = true;
+    uiDirty = true;
+  }
 }
 
 class ServerCallbacks : public NimBLEServerCallbacks {
@@ -64,13 +100,9 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
     if (value.empty()) return;
     String command(value.c_str());
     command.trim();
+    Serial.printf("BLE command: %s\n", command.c_str());
     sendToTeensy(command);
 
-    if (command.startsWith("ANIMATION ")) {
-      animationId = constrain(command.substring(10).toInt(), 0, 255);
-    }
-    notifyStatus("OK " + command);
-    uiDirty = true;
   }
 };
 
@@ -78,7 +110,6 @@ ServerCallbacks serverCallbacks;
 CommandCallbacks commandCallbacks;
 
 void setupBle() {
-  Serial.println("BLE: initializing");
   NimBLEDevice::init(CubeProtocol::DEVICE_NAME);
   NimBLEDevice::setPower(9);
 
@@ -103,7 +134,6 @@ void setupBle() {
   advertising->enableScanResponse(true);
   advertising->setName(CubeProtocol::DEVICE_NAME);
   advertising->start();
-  Serial.println("BLE: advertising as Mega Cube");
 }
 
 void drawButton(int x, int y, int width, const char* label) {
@@ -117,24 +147,26 @@ void drawButton(int x, int y, int width, const char* label) {
 void drawUi() {
   uiDirty = false;
   display.fillScreen(COLOR_BACKGROUND);
-  display.setTextDatum(TL_DATUM);
+  display.setTextDatum(TC_DATUM);
   display.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
-  display.drawString("MEGA CUBE", 18, 16, 4);
-  display.drawFastHLine(18, 52, 284, COLOR_ACCENT);
+  display.drawString("MEGA CUBE", 160, 42, 4);
+  display.drawFastHLine(38, 82, 244, COLOR_ACCENT);
 
   display.setTextColor(phoneConnected ? COLOR_CONNECTED : TFT_ORANGE,
                        COLOR_BACKGROUND);
-  display.drawString(phoneConnected ? "Phone connected" : "Waiting for phone",
-                     18, 70, 2);
+  display.setTextDatum(MC_DATUM);
+  display.drawString(phoneConnected ? "CONNECTED" : "CONNECTING...",
+                     160, 132, 4);
 
-  display.setTextColor(TFT_LIGHTGREY, COLOR_BACKGROUND);
-  display.drawString("Animation", 18, 112, 2);
-  display.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
-  display.drawNumber(animationId, 18, 136, 4);
-
-  drawButton(18, 180, 88, "PREV");
-  drawButton(116, 180, 88, "NEXT");
-  drawButton(214, 180, 88, "PLAYLIST");
+  display.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
+  display.setTextDatum(TC_DATUM);
+  display.drawString("NOW PLAYING", 160, 174, 2);
+  display.setTextColor(TFT_CYAN, COLOR_BACKGROUND);
+  display.drawString(playbackConfirmed
+                         ? (playlistActive ? "PLAYLIST"
+                                           : animationName(animationId))
+                         : "WAITING FOR TEENSY",
+                     160, 202, 4);
 
   display.setTextDatum(BC_DATUM);
   display.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
@@ -154,9 +186,9 @@ void handleTouch() {
 
   if (y < 180 || y > 232) return;
   if (x < 108) {
-    selectAnimation(animationId == 0 ? 28 : animationId - 1);
+    selectAnimation(animationId == 0 ? 29 : animationId - 1);
   } else if (x < 208) {
-    selectAnimation(animationId >= 28 ? 0 : animationId + 1);
+    selectAnimation(animationId >= 29 ? 0 : animationId + 1);
   } else {
     sendToTeensy("PLAYLIST");
     notifyStatus("PLAYLIST");
@@ -169,7 +201,8 @@ void forwardTeensyStatus() {
     if (value == '\n') {
       teensyLine.trim();
       if (!teensyLine.isEmpty()) {
-        Serial.printf("Teensy -> %s\n", teensyLine.c_str());
+        Serial.printf("UART2 <- Teensy: %s\n", teensyLine.c_str());
+        applyTeensyConfirmation(teensyLine);
         notifyStatus(teensyLine);
       }
       teensyLine = "";
@@ -182,36 +215,29 @@ void forwardTeensyStatus() {
 
 void setup() {
   Serial.begin(115200);
-  delay(300);
-  Serial.println("\nMega Cube controller starting");
+  delay(200);
+  Serial.println("Mega Cube controller starting");
   teensy.begin(115200, SERIAL_8N1, Pins::TEENSY_RX, Pins::TEENSY_TX);
 
-  // Keep BLE available even when the optional display or touch panel is absent.
-  setupBle();
-
-  if (ENABLE_LOCAL_UI) {
+  if (ENABLE_DISPLAY) {
     pinMode(Pins::TFT_BACKLIGHT, OUTPUT);
     digitalWrite(Pins::TFT_BACKLIGHT, HIGH);
     pinMode(Pins::SD_CS, OUTPUT);
     digitalWrite(Pins::SD_CS, HIGH);
 
     SPI.begin(Pins::SPI_SCK, Pins::SPI_MISO, Pins::SPI_MOSI);
-    Serial.println("Display: initializing");
     display.init();
     display.setRotation(1);
-    touch.begin();
-    touch.setRotation(1);
-    Serial.println("Display: ready");
     drawUi();
-  } else {
-    Serial.println("Display and touch: disabled");
   }
+
+  setupBle();
   sendToTeensy("STATUS");
 }
 
 void loop() {
-  if (ENABLE_LOCAL_UI) handleTouch();
+  if (ENABLE_TOUCH) handleTouch();
   forwardTeensyStatus();
-  if (ENABLE_LOCAL_UI && uiDirty) drawUi();
+  if (ENABLE_DISPLAY && uiDirty) drawUi();
   delay(5);
 }
