@@ -15,7 +15,14 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelUuid
+import android.util.Log
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 
@@ -29,6 +36,7 @@ class CubeBleManager(
     private val onDevicesChanged: (List<CubeDevice>) -> Unit,
     private val onConnectionChanged: (ConnectionState) -> Unit,
     private val onStatus: (String) -> Unit,
+    private val onEvent: (String) -> Unit,
 ) {
     companion object {
         val SERVICE_UUID: UUID = UUID.fromString("9f6d1000-7d3a-4c2d-9b7d-5b1f52c4a001")
@@ -45,10 +53,36 @@ class CubeBleManager(
     private val scanner: BluetoothLeScanner?
         get() = adapter?.bluetoothLeScanner
     private val devices = linkedMapOf<String, CubeDevice>()
+    private val audioManager = appContext.getSystemService(AudioManager::class.java)
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            if (state == ConnectionState.CONNECTED) configureAudioLatency()
+        }
+
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+            if (state == ConnectionState.CONNECTED) configureAudioLatency()
+        }
+    }
 
     private var gatt: BluetoothGatt? = null
     private var commandCharacteristic: BluetoothGattCharacteristic? = null
     private var state = ConnectionState.DISCONNECTED
+
+    init {
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, mainHandler)
+    }
+
+    private fun handleNotification(value: ByteArray) {
+        val message = value.toString(StandardCharsets.UTF_8)
+        if (message.startsWith("EVENT ")) {
+            Log.d("MegaCubeBle", "notification: ")
+            onEvent(message.removePrefix("EVENT "))
+        } else {
+            onStatus(message)
+        }
+    }
 
     private fun setState(value: ConnectionState) {
         state = value
@@ -100,6 +134,7 @@ class CubeBleManager(
             }
             setState(ConnectionState.CONNECTED)
             onStatus("Connected to Mega Cube")
+            mainHandler.postDelayed({ configureAudioLatency() }, 600)
         }
 
         @Deprecated("Deprecated in API 33")
@@ -107,7 +142,7 @@ class CubeBleManager(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
         ) {
-            onStatus(characteristic.value.toString(StandardCharsets.UTF_8))
+            handleNotification(characteristic.value)
         }
 
         override fun onCharacteristicChanged(
@@ -115,7 +150,7 @@ class CubeBleManager(
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray,
         ) {
-            onStatus(value.toString(StandardCharsets.UTF_8))
+            handleNotification(value)
         }
     }
 
@@ -145,6 +180,26 @@ class CubeBleManager(
         val device = adapter?.getRemoteDevice(address) ?: return
         gatt?.close()
         gatt = device.connectGatt(appContext, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+    }
+
+    private fun configuredLatencyMs(): Int {
+        val outputTypes = audioManager
+            .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            .map { it.type }
+        val bleAudio = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            outputTypes.any { it == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                it == AudioDeviceInfo.TYPE_BLE_SPEAKER }
+        return when {
+            outputTypes.contains(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) -> 250
+            bleAudio -> 180
+            else -> 0
+        }
+    }
+
+    private fun configureAudioLatency() {
+        val latencyMs = configuredLatencyMs()
+        Log.d("MegaCubeAudio", "audio route compensation=" + latencyMs + "ms")
+        send("AUDIO_LATENCY " + latencyMs)
     }
 
     fun disconnect() {

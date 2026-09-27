@@ -10,10 +10,19 @@ static Timer print_interval = 2.0f;
 static String controller_line;
 static int16_t pending_animation_reply = -1;
 static bool pending_playlist_reply = false;
+static uint16_t audio_latency_ms = 0;
 
 static void controllerReply(const String& message) {
   Serial1.println(message);
   Serial.println(message);
+}
+
+void sendAnimationEvent(const char* event) {
+  controllerReply("EVENT " + String(event));
+}
+
+float getAudioLeadSeconds() {
+  return audio_latency_ms / 1000.0f;
 }
 
 static void handleControllerCommand(String command) {
@@ -41,6 +50,12 @@ static void handleControllerCommand(String command) {
     config.animation.changed = true;
     pending_animation_reply = -1;
     pending_playlist_reply = true;
+    return;
+  }
+
+  if (command.startsWith("AUDIO_LATENCY ")) {
+    audio_latency_ms = constrain(command.substring(14).toInt(), 0, 1000);
+    controllerReply("OK AUDIO_LATENCY " + String(audio_latency_ms));
     return;
   }
 

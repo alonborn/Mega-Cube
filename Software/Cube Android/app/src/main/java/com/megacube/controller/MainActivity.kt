@@ -84,12 +84,14 @@ private fun MegaCubeApp() {
     var connection by remember { mutableStateOf(ConnectionState.DISCONNECTED) }
     var status by remember { mutableStateOf("Ready") }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val fireworksAudio = remember { FireworksAudioPlayer(context) }
     val manager = remember {
         CubeBleManager(
             context,
             onDevicesChanged = { devices = it },
             onConnectionChanged = { connection = it },
             onStatus = { status = it },
+            onEvent = fireworksAudio::playEvent,
         )
     }
 
@@ -106,7 +108,10 @@ private fun MegaCubeApp() {
     }
 
     DisposableEffect(Unit) {
-        onDispose { manager.disconnect() }
+        onDispose {
+            manager.disconnect()
+            fireworksAudio.release()
+        }
     }
 
     MaterialTheme {

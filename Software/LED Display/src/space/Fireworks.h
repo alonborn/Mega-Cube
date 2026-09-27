@@ -3,8 +3,12 @@
 
 #include "Animation.h"
 
+void sendAnimationEvent(const char* event);
+float getAudioLeadSeconds();
+
 class Fireworks : public Animation {
  private:
+  static constexpr uint16_t MAX_DEBRIS = 320;
   float radius;
   uint16_t numDebris;
   Vector3 source;
@@ -12,78 +16,122 @@ class Fireworks : public Animation {
   Vector3 velocity;
   Vector3 gravity;
   Particle missile;
-  Particle debris[200];
+  Particle debris[MAX_DEBRIS];
   boolean exploded;
+  boolean waiting;
+  boolean pendingExplosion;
+  uint8_t pendingExplosionCount;
+  Vector3 pendingExplosionPosition;
+  Timer launchDelay;
+  Timer explosionDelay;
 
   static constexpr auto &settings = config.animation.fireworks;
+
+  void scheduleNext() {
+    waiting = true;
+    launchDelay = noise.nextRandom(0.1f, 1.0f);
+  }
+
+  void createExplosion(const Vector3 &position, uint8_t explosionCount) {
+    pendingExplosion = false;
+    exploded = true;
+    const uint16_t debrisPerExplosion = random(70, 101);
+    numDebris = min<uint16_t>(debrisPerExplosion * explosionCount, MAX_DEBRIS);
+    const float pwr = noise.nextRandom(0.50f, 1.00f);
+    const uint8_t baseHue = random(0, 256);
+    Vector3 centers[4];
+    for (uint8_t cluster = 0; cluster < explosionCount; ++cluster) {
+      centers[cluster] =
+          position + Vector3(noise.nextRandom(-0.45f, 0.45f),
+                             noise.nextRandom(-0.20f, 0.30f),
+                             noise.nextRandom(-0.45f, 0.45f));
+    }
+    for (uint16_t i = 0; i < numDebris; ++i) {
+      const uint8_t cluster = i % explosionCount;
+      Vector3 speed(noise.nextRandom(-pwr, pwr),
+                    noise.nextRandom(-pwr, pwr),
+                    noise.nextRandom(-pwr, pwr));
+      const uint8_t hue = baseHue + cluster * (256 / explosionCount) +
+                          random(0, 36);
+      debris[i] = {centers[cluster], speed, hue, 1.0f,
+                   noise.nextRandom(1.0f, 2.0f)};
+    }
+  }
+
+  void beginExplosion(const Vector3 &position) {
+    pendingExplosionCount = random(0, 8) == 0 ? random(3, 5) : 1;
+    if (pendingExplosionCount == 1)
+      sendAnimationEvent("EXPLOSION");
+    else if (pendingExplosionCount == 3)
+      sendAnimationEvent("EXPLOSION_3");
+    else
+      sendAnimationEvent("EXPLOSION_4");
+
+    const float lead = getAudioLeadSeconds();
+    if (lead > 0.001f) {
+      pendingExplosion = true;
+      pendingExplosionPosition = position;
+      explosionDelay = lead;
+    } else {
+      createExplosion(position, pendingExplosionCount);
+    }
+  }
 
  public:
   void init() {
     state = state_t::RUNNING;
     timer_running = settings.runtime;
     radius = settings.radius;
-    fireArrow();
+    exploded = false;
+    pendingExplosion = false;
+    scheduleNext();
   }
 
   void fireArrow() {
-    // calculate source normally divided
+    waiting = false;
+    pendingExplosion = false;
+    if (random(0, 2) == 0) sendAnimationEvent("LAUNCH");
     source = Vector3(noise.nextGaussian(0.0f, 0.25f), -1.0f,
                      noise.nextGaussian(0.0f, 0.25f));
-    // calculate target normally divided
     target = Vector3(noise.nextGaussian(0.0f, 0.25f),
                      noise.nextGaussian(0.8f, 0.10f),
                      noise.nextGaussian(0.0f, 0.25f));
-    // Assign a time in seconds to reach the target
-    float t = noise.nextGaussian(0.60f, 0.20f);
-    // Determine directional velocities in pixels per second
+    const float t = noise.nextGaussian(0.60f, 0.20f);
     velocity = (target - source) / t;
-    // Set missile source and velocity
     missile.position = source;
     missile.velocity = velocity;
-    // Set some system gravity
     gravity = Vector3(0, -1.0f, 0);
     exploded = false;
   }
 
-    void draw(float dt) {
+  void draw(float dt) {
     radius = settings.radius;
     setMotionBlur(settings.motionBlur);
-    uint8_t brightness = settings.brightness * getBrightness();
+    const uint8_t brightness = settings.brightness * getBrightness();
 
-    // Missile drawing mode
-    if (!exploded) {
-      Vector3 temp = missile.position;
-      missile.move(dt, gravity);
-      // If missile falls back to earth or moved past the target explode it
-      if ((temp.y > missile.position.y) | (missile.position.y > target.y)) {
-        // Activate explode drawing mode
-        exploded = true;
-        // If target is reached the missile is exploded and debris is formed
-        numDebris = random((sizeof(debris) / sizeof(Particle)) / 2,
-                           sizeof(debris) / sizeof(Particle));
-        // Overall exploding power of particles for all debris
-        float pwr = noise.nextRandom(0.50f, 1.00f);
-        // starting position in the hue color palette
-        uint8_t hue = (uint8_t)random(0, 256);
-        // generate debris with power and hue
-        for (uint16_t i = 0; i < numDebris; i++) {
-          // Debris has random velocities depending on overall power
-          Vector3 explode =
-              Vector3(noise.nextRandom(-pwr, pwr), noise.nextRandom(-pwr, pwr),
-                      noise.nextRandom(-pwr, pwr));
-          debris[i] = {temp, explode, uint8_t(hue + random(0, 64)), 1.0f,
-                       noise.nextRandom(1.0f, 2.0f)};
-        }
-      }
-      else {
-        voxel(missile.position * radius, Color::WHITE);
-      }
+    if (waiting) {
+      if (launchDelay.update()) fireArrow();
+      return;
     }
 
-    // Explosion drawing mode
+    if (pendingExplosion) {
+      if (explosionDelay.update())
+        createExplosion(pendingExplosionPosition, pendingExplosionCount);
+      return;
+    }
+
+    if (!exploded) {
+      Vector3 previous = missile.position;
+      missile.move(dt, gravity);
+      if ((previous.y > missile.position.y) | (missile.position.y > target.y))
+        beginExplosion(previous);
+      else
+        voxel(missile.position * radius, Color::WHITE);
+    }
+
     if (exploded) {
       uint16_t visible = 0;
-      for (uint16_t i = 0; i < numDebris; i++) {
+      for (uint16_t i = 0; i < numDebris; ++i) {
         if (debris[i].position.y > -1.0f)
           debris[i].move(dt, gravity);
         else
@@ -94,22 +142,17 @@ class Fireworks : public Animation {
         } else {
           debris[i].brightness = 0;
         }
-        Color c = Color(debris[i].hue, RainbowGradientPalette);
-        // Add some random sparkles
-        if (random(0, 20) == 0) {
-          c = Color::WHITE;
-        }
-        c.scale(debris[i].brightness * brightness);
-        voxel_add(debris[i].position * radius, c);
+        Color color = Color(debris[i].hue, RainbowGradientPalette);
+        if (random(0, 20) == 0) color = Color::WHITE;
+        color.scale(debris[i].brightness * brightness);
+        voxel_add(debris[i].position * radius, color);
       }
-      if (timer_running.update()) {
-        state = state_t::ENDING;
-      }
+      if (timer_running.update()) state = state_t::ENDING;
       if (visible == 0) {
         if (state == state_t::ENDING)
           state = state_t::INACTIVE;
         else
-          fireArrow();
+          scheduleNext();
       }
     }
   }
