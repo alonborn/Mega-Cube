@@ -8,7 +8,6 @@ class Opening2 : public Animation {
  private:
   static constexpr float C = 7.5f;
   float age = 0.0f;
-  bool finished = false;
 
   static float unit(float n) { return constrain(n, 0.0f, 1.0f); }
   static float ease(float n) {
@@ -89,48 +88,61 @@ class Opening2 : public Animation {
             add(x, y, z, Color::WHITE);
   }
 
-  void frame() {
-    const float p = (age - 2.85f) / 0.55f;
-    const uint8_t level = 255.0f * sinf(p * PI);
+  void drawFloor(float opacity) {
+    for (uint8_t x = 0; x < 16; ++x)
+      for (uint8_t z = 0; z < 16; ++z) {
+        const float flow =
+            sinf(x * 0.65f + age * 8.0f) +
+            sinf(z * 0.75f - age * 6.4f) +
+            sinf((x + z) * 0.38f + age * 4.7f);
+        const uint8_t hue = static_cast<uint8_t>(
+            age * 95.0f + x * 11.0f - z * 9.0f + flow * 35.0f);
+        const float pulse = 0.5f + 0.5f *
+            sinf(x * 0.42f - z * 0.51f + age * 9.0f + flow);
+        const uint8_t level = static_cast<uint8_t>(
+            (145.0f + pulse * 110.0f) * opacity);
+        voxel(x, 0, z, rainbow(hue, level));
+      }
+  }
+
+  void melt() {
+    const float p = ease((age - 2.10f) / 0.95f);
     for (uint8_t x = 0; x < 16; ++x)
       for (uint8_t y = 0; y < 16; ++y)
         for (uint8_t z = 0; z < 16; ++z) {
           const uint8_t edges = (x == 0 || x == 15) +
                                 (y == 0 || y == 15) +
                                 (z == 0 || z == 15);
-          if (edges >= 2)
-            voxel(x, y, z, rainbow(x * 9 + y * 13 + z * 17, level));
+          if (edges < 2) continue;
+          const uint8_t fallingY = static_cast<uint8_t>(
+              constrain(y * (1.0f - p), 0.0f, 15.0f));
+          const uint8_t hue = static_cast<uint8_t>(
+              x * 9 + y * 13 + z * 17 + age * 80.0f);
+          voxel(x, fallingY, z, rainbow(hue));
+          if (fallingY > 0)
+            voxel(x, fallingY - 1, z, rainbow(hue + 18, 150));
         }
+    drawFloor(p);
   }
 
-  void collapse() {
-    const float p = ease((age - 3.40f) / 0.70f);
-    const float radius = 13.0f * (1.0f - p);
-    const uint8_t level = 255.0f * (1.0f - p);
-    for (uint8_t x = 0; x < 16; ++x)
-      for (uint8_t y = 0; y < 16; ++y)
-        for (uint8_t z = 0; z < 16; ++z) {
-          const float d = distance(x, y, z);
-          if (fabsf(d - radius) < 1.0f)
-            voxel(x, y, z, rainbow(d * 20.0f + age * 100.0f, level));
-        }
+  void idleFlow() {
+    drawFloor(1.0f);
   }
 
  public:
   void init() override {
     state = state_t::RUNNING;
     age = -getAudioLeadSeconds();
-    finished = false;
     setMotionBlur(0);
   }
   void draw(float dt) override {
-    if (finished) return;
     age += dt;
     if (age < 0.0f) return;
     if (age < 0.35f) spark();
     else if (age < 1.15f) scans();
     else if (age < 2.10f) wave();
-    else finished = true;
+    else if (age < 3.05f) melt();
+    else idleFlow();
   }
 };
 #endif
