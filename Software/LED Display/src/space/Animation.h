@@ -41,6 +41,8 @@
 #define ANIMATION_EYE_OF_SAURON 27
 #define ANIMATION_WHITE_TEST 28
 #define ANIMATION_RED_TEST 29
+#define ANIMATION_OPENING 30
+#define ANIMATION_OPENING2 31
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE

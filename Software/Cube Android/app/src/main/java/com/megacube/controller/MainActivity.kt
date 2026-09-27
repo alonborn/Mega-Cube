@@ -69,6 +69,8 @@ private val animations = listOf(
     AnimationChoice(27, "Eye of Sauron"),
     AnimationChoice(28, "White Test"),
     AnimationChoice(29, "Red Test"),
+    AnimationChoice(30, "Opening"),
+    AnimationChoice(31, "Opening 2"),
 )
 
 class MainActivity : ComponentActivity() {
@@ -204,7 +206,10 @@ private fun DeviceScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ControlScreen(status: String, manager: CubeBleManager) {
+private fun ControlScreen(
+    status: String,
+    manager: CubeBleManager,
+) {
     var brightness by remember { mutableFloatStateOf(180f) }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Mega Cube") }) }) { padding ->
@@ -228,7 +233,7 @@ private fun ControlScreen(status: String, manager: CubeBleManager) {
                 items(animations, key = { it.id }) { animation ->
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable {
-                            manager.send("ANIMATION ${animation.id}")
+                            manager.selectAnimation(animation.id)
                         },
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0ED)),
                         shape = RoundedCornerShape(6.dp),

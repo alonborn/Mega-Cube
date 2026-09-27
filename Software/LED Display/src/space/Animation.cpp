@@ -18,6 +18,8 @@
 #include "Life.h"
 #include "Mario.h"
 #include "Metaballs.h"
+#include "Opening.h"
+#include "Opening2.h"
 #include "Plasma.h"
 #include "Pong.h"
 #include "RedTest.h"
@@ -62,6 +64,8 @@ LedTest ledtest;
 Life life;
 Mario mario;
 Metaballs metaballs;
+Opening opening;
+Opening2 opening2;
 Plasma plasma;
 Pong pong;
 Scroller scroller;
@@ -84,7 +88,8 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &channeltest, &channelcolortest, &the_matrix,
                            &spotted_sphere, &supernova, &aurora, &black_hole,
                            &metaballs, &electric_storm, &dna_tunnel,
-                           &eye_of_sauron, &white_test, &red_test};
+                           &eye_of_sauron, &white_test, &red_test, &opening,
+                           &opening2};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -253,6 +258,8 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"White Test", "All LEDs fade from black to full white and back", 0,
        &white_test},
       {"Red Test", "All LEDs pulse red", 0, &red_test},
+      {"Opening", "Connection opening animation", 0, &opening},
+      {"Opening 2", "Colorful connection opening animation", 0, &opening2},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

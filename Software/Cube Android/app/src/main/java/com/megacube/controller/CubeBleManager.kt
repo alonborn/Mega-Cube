@@ -136,6 +136,7 @@ class CubeBleManager(
             setState(ConnectionState.CONNECTED)
             onStatus("Connected to Mega Cube")
             mainHandler.postDelayed({ configureAudioLatency() }, 600)
+            mainHandler.postDelayed({ selectAnimation(30) }, 1000)
         }
 
         @Deprecated("Deprecated in API 33")
@@ -209,6 +210,15 @@ class CubeBleManager(
         gatt = null
         commandCharacteristic = null
         setState(ConnectionState.DISCONNECTED)
+    }
+
+    fun selectAnimation(id: Int) {
+        if (id == 30 || id == 31) {
+            onEvent("OPENING")
+            mainHandler.postDelayed({ send("ANIMATION " + id) }, 650)
+        } else {
+            send("ANIMATION " + id)
+        }
     }
 
     fun send(command: String): Boolean {

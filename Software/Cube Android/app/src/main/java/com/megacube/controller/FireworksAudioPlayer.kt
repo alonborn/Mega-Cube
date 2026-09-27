@@ -25,6 +25,9 @@ class FireworksAudioPlayer(context: Context) {
         )
         .build()
 
+    private val openingPlayer = MediaPlayer.create(context, R.raw.opening_intro).apply {
+        setVolume(1.0f, 1.0f)
+    }
     private val rainPlayer = MediaPlayer.create(context, R.raw.storm_rain_loop).apply {
         isLooping = true
         setVolume(0.22f, 0.22f)
@@ -84,6 +87,16 @@ class FireworksAudioPlayer(context: Context) {
     @Synchronized
     fun playEvent(event: String) {
         when (event) {
+            "OPENING" -> {
+                Log.d(TAG, "playing opening intro")
+                if (openingPlayer.isPlaying) openingPlayer.pause()
+                openingPlayer.setOnSeekCompleteListener { player ->
+                    player.setOnSeekCompleteListener(null)
+                    player.start()
+                }
+                openingPlayer.seekTo(0)
+                return
+            }
             "STORM_START" -> {
                 if (!rainPlayer.isPlaying) rainPlayer.start()
                 return
@@ -112,6 +125,7 @@ class FireworksAudioPlayer(context: Context) {
     }
 
     fun release() {
+        openingPlayer.release()
         rainPlayer.release()
         soundPool.release()
     }
