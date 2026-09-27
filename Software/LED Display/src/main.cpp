@@ -35,6 +35,7 @@ static void handleControllerCommand(String command) {
       controllerReply("ERROR INVALID_ANIMATION");
       return;
     }
+    sendAnimationEvent("STORM_STOP");
     config.animation.playlist = false;
     config.animation.play_one = true;
     config.animation.animation = id;
@@ -45,6 +46,7 @@ static void handleControllerCommand(String command) {
   }
 
   if (command == "PLAYLIST") {
+    sendAnimationEvent("STORM_STOP");
     config.animation.play_one = false;
     config.animation.playlist = true;
     config.animation.changed = true;

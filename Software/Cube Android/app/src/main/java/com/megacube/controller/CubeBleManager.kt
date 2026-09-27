@@ -111,6 +111,7 @@ class CubeBleManager(
                 setState(ConnectionState.CONNECTING)
                 gatt.discoverServices()
             } else {
+                onEvent("STORM_STOP")
                 commandCharacteristic = null
                 setState(ConnectionState.DISCONNECTED)
                 onStatus("Cube disconnected")

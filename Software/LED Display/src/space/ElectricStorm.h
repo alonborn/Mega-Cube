@@ -3,12 +3,19 @@
 
 #include "Animation.h"
 
+void sendAnimationEvent(const char* event);
+float getAudioLeadSeconds();
+
 class ElectricStorm : public Animation {
  private:
   static const uint8_t MAX_SEGMENTS = 120;
   static const uint8_t IMPACT_PARTICLES = 180;
   static constexpr float DURATION = 30.0f;
-  static constexpr float STRIKE_DURATION = 0.34f;
+  static constexpr float REVEAL_DURATION = 0.20f;
+  static constexpr float HOLD_DURATION = 0.70f;
+  static constexpr float FADE_DURATION = 0.25f;
+  static constexpr float STRIKE_DURATION =
+      REVEAL_DURATION + HOLD_DURATION + FADE_DURATION;
 
   struct Segment {
     Vector3 start;
@@ -29,6 +36,7 @@ class ElectricStorm : public Animation {
   bool strike_active = false;
   bool impact_pending = false;
   bool impact_triggered = false;
+  bool rain_active = false;
 
   void addSegment(const Vector3 &start, const Vector3 &end, float reveal,
                   uint8_t branch) {
@@ -45,7 +53,6 @@ class ElectricStorm : public Animation {
                  noise.nextRandom(-0.25f, 0.65f),
                  noise.nextRandom(-1.0f, 1.0f)))
             .normalize();
-
     const uint8_t branch_segments = random(2, 5);
     for (uint8_t i = 0; i < branch_segments; ++i) {
       Vector3 next = point + direction * noise.nextRandom(0.9f, 1.8f) +
@@ -62,7 +69,6 @@ class ElectricStorm : public Animation {
     const Vector3 main_direction = (bolt_target - bolt_source).normalize();
     Vector3 previous = bolt_source;
     const uint8_t main_segments = 14;
-
     for (uint8_t i = 1; i <= main_segments; ++i) {
       const float ratio = i / static_cast<float>(main_segments);
       Vector3 next = bolt_source + (bolt_target - bolt_source) * ratio;
@@ -74,12 +80,10 @@ class ElectricStorm : public Animation {
       }
       addSegment(previous, next, ratio + reveal_offset, 0);
       previous = next;
-
       if (i > 2 && i < main_segments - 1 && random(0, 100) < 45) {
         addBranch(next, main_direction, ratio + reveal_offset, 1);
-        if (random(0, 100) < 22) {
+        if (random(0, 100) < 22)
           addBranch(next, -main_direction, ratio + reveal_offset, 2);
-        }
       }
     }
   }
@@ -91,7 +95,6 @@ class ElectricStorm : public Animation {
     target = Vector3(noise.nextRandom(-6.5f, 6.5f), -7.1f,
                      noise.nextRandom(-6.5f, 6.5f));
     generateBolt(source, target, 0.0f);
-
     if (random(0, 100) < 35) {
       const Vector3 second_source(noise.nextRandom(-6.5f, 6.5f), 7.0f,
                                   noise.nextRandom(-6.5f, 6.5f));
@@ -104,8 +107,9 @@ class ElectricStorm : public Animation {
     impact_pending = --strikes_until_impact == 0;
     if (impact_pending) strikes_until_impact = random(3, 7);
     impact_triggered = false;
+    sendAnimationEvent(impact_pending ? "THUNDER_BOOM" : "THUNDER");
     strike_active = true;
-    strike_age = 0.0f;
+    strike_age = -getAudioLeadSeconds();
     next_strike_delay = noise.nextRandom(0.25f, 1.35f);
   }
 
@@ -144,9 +148,10 @@ class ElectricStorm : public Animation {
     next_strike_delay = 0.0f;
     strike_active = false;
     strikes_until_impact = random(3, 7);
-    for (uint8_t i = 0; i < IMPACT_PARTICLES; ++i) {
+    rain_active = true;
+    sendAnimationEvent("STORM_START");
+    for (uint8_t i = 0; i < IMPACT_PARTICLES; ++i)
       impact_particles[i].brightness = 0.0f;
-    }
     setMotionBlur(85);
   }
 
@@ -155,11 +160,15 @@ class ElectricStorm : public Animation {
     strike_age += dt;
     if (!strike_active && strike_age >= next_strike_delay) generateStrike();
 
-    if (strike_active) {
-      const float progress = min(1.0f, strike_age / STRIKE_DURATION);
-      const float reveal = min(1.25f, progress * 1.45f);
-      const uint8_t brightness = static_cast<uint8_t>(
-          255.0f * (progress < 0.78f ? 1.0f : (1.0f - progress) / 0.22f));
+    if (strike_active && strike_age >= 0.0f) {
+      const float revealProgress = min(1.0f, strike_age / REVEAL_DURATION);
+      const float reveal = min(1.25f, revealProgress * 1.35f);
+      uint8_t brightness = 255;
+      const float fadeStart = REVEAL_DURATION + HOLD_DURATION;
+      if (strike_age > fadeStart) {
+        brightness = static_cast<uint8_t>(
+            255.0f * max(0.0f, 1.0f - (strike_age - fadeStart) / FADE_DURATION));
+      }
 
       for (uint8_t i = 0; i < segment_count; ++i) {
         const Segment &segment = segments[i];
@@ -175,16 +184,18 @@ class ElectricStorm : public Animation {
         radiate4(target, Color(80, 165, 255).scaled(brightness), 1.25f);
         if (impact_pending && !impact_triggered) createImpact();
       }
-
-      if (progress >= 1.0f) {
+      if (strike_age >= STRIKE_DURATION) {
         strike_active = false;
         strike_age = 0.0f;
       }
     }
 
     drawImpact(dt);
-    if (age >= DURATION) state = state_t::INACTIVE;
+    if (age >= DURATION) {
+      if (rain_active) sendAnimationEvent("STORM_STOP");
+      rain_active = false;
+      state = state_t::INACTIVE;
+    }
   }
 };
-
 #endif

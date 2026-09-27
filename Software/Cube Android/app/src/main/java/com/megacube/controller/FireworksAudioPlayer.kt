@@ -2,6 +2,7 @@ package com.megacube.controller
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.media.SoundPool
 import android.util.Log
 
@@ -10,10 +11,12 @@ class FireworksAudioPlayer(context: Context) {
         private const val TAG = "MegaCubeAudio"
         private const val LAUNCH = "LAUNCH"
         private const val EXPLOSION = "EXPLOSION"
+        private const val THUNDER = "THUNDER"
+        private const val THUNDER_BOOM = "THUNDER_BOOM"
     }
 
     private val soundPool = SoundPool.Builder()
-        .setMaxStreams(8)
+        .setMaxStreams(10)
         .setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_GAME)
@@ -22,6 +25,10 @@ class FireworksAudioPlayer(context: Context) {
         )
         .build()
 
+    private val rainPlayer = MediaPlayer.create(context, R.raw.storm_rain_loop).apply {
+        isLooping = true
+        setVolume(0.22f, 0.22f)
+    }
     private val soundTypes = mutableMapOf<Int, String>()
     private val loadedSounds = mutableMapOf<String, MutableList<Int>>()
     private val pendingEvents = ArrayDeque<String>()
@@ -32,7 +39,7 @@ class FireworksAudioPlayer(context: Context) {
             Log.d(TAG, "load sample=$sampleId type=$type status=$status")
             if (status == 0 && type != null) {
                 loadedSounds.getOrPut(type) { mutableListOf() }.add(sampleId)
-                val pending = pendingEvents.firstOrNull { if (it.startsWith(EXPLOSION)) EXPLOSION == type else it == type }
+                val pending = pendingEvents.firstOrNull { eventType(it) == type }
                 if (pending != null) {
                     pendingEvents.remove(pending)
                     playEvent(pending)
@@ -41,19 +48,22 @@ class FireworksAudioPlayer(context: Context) {
         }
 
         load(context, LAUNCH, listOf(
-            R.raw.launch_01,
-            R.raw.launch_02,
-            R.raw.launch_03,
-            R.raw.launch_04,
-            R.raw.launch_05,
+            R.raw.launch_01, R.raw.launch_02, R.raw.launch_03,
+            R.raw.launch_04, R.raw.launch_05,
         ))
         load(context, EXPLOSION, listOf(
-            R.raw.explosion_01,
-            R.raw.explosion_03,
-            R.raw.explosion_04,
-            R.raw.explosion_05,
-            R.raw.explosion_07,
-            R.raw.explosion_08,
+            R.raw.explosion_01, R.raw.explosion_03, R.raw.explosion_04,
+            R.raw.explosion_05, R.raw.explosion_07, R.raw.explosion_08,
+        ))
+        load(context, THUNDER, listOf(
+            R.raw.storm_thunder_1, R.raw.storm_thunder_2,
+            R.raw.storm_thunder_3, R.raw.storm_thunder_4,
+            R.raw.storm_thunder_5, R.raw.storm_thunder_6,
+            R.raw.storm_thunder_7, R.raw.storm_thunder_8,
+            R.raw.storm_thunder_9,
+        ))
+        load(context, THUNDER_BOOM, listOf(
+            R.raw.storm_thunder_boom_1, R.raw.storm_thunder_boom_2,
         ))
     }
 
@@ -64,9 +74,28 @@ class FireworksAudioPlayer(context: Context) {
         }
     }
 
+    private fun eventType(event: String): String = when {
+        event.startsWith(EXPLOSION) -> EXPLOSION
+        event == THUNDER_BOOM -> THUNDER_BOOM
+        event == THUNDER -> THUNDER
+        else -> event
+    }
+
     @Synchronized
     fun playEvent(event: String) {
-        val type = if (event.startsWith(EXPLOSION)) EXPLOSION else event
+        when (event) {
+            "STORM_START" -> {
+                if (!rainPlayer.isPlaying) rainPlayer.start()
+                return
+            }
+            "STORM_STOP" -> {
+                if (rainPlayer.isPlaying) rainPlayer.pause()
+                rainPlayer.seekTo(0)
+                return
+            }
+        }
+
+        val type = eventType(event)
         val sounds = loadedSounds[type].orEmpty()
         if (sounds.isEmpty()) {
             if (pendingEvents.size < 8) pendingEvents.addLast(event)
@@ -83,6 +112,7 @@ class FireworksAudioPlayer(context: Context) {
     }
 
     fun release() {
+        rainPlayer.release()
         soundPool.release()
     }
 }
