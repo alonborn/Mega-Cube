@@ -51,7 +51,7 @@ const char* animationName(uint8_t id) {
       "MULTI LIGHTS",   "CHANNEL TEST",  "CHANNEL COLORS", "THE MATRIX",
       "SPOTTED SPHERE", "SUPERNOVA",     "AURORA",         "BLACK HOLE",
       "METABALLS",      "ELECTRIC STORM", "DNA TUNNEL",    "EYE OF SAURON",
-      "WHITE TEST",      "RED TEST",        "OPENING",        "OPENING 2"};
+      "WHITE TEST",      "RED TEST",        "OPENING",        "OPENING 2",      "BLACKOUT"};
   return id < sizeof(names) / sizeof(names[0]) ? names[id] : "UNKNOWN";
 }
 
@@ -186,9 +186,9 @@ void handleTouch() {
 
   if (y < 180 || y > 232) return;
   if (x < 108) {
-    selectAnimation(animationId == 0 ? 31 : animationId - 1);
+    selectAnimation(animationId == 0 ? 32 : animationId - 1);
   } else if (x < 208) {
-    selectAnimation(animationId >= 31 ? 0 : animationId + 1);
+    selectAnimation(animationId >= 32 ? 0 : animationId + 1);
   } else {
     sendToTeensy("PLAYLIST");
     notifyStatus("PLAYLIST");

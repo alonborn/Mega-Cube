@@ -3,10 +3,10 @@
 
 #include "Animation.h"
 
+float getAudioLeadSeconds();
+
 class EyeOfSauron : public Animation {
  private:
-  static constexpr float DURATION = 30.0f;
-
   enum class GazeMode : uint8_t { SCAN, DROP, HOLD, TRACK, SNAP };
 
   float age = 0.0f;
@@ -148,7 +148,7 @@ class EyeOfSauron : public Animation {
  public:
   void init() override {
     state = state_t::RUNNING;
-    age = 0.0f;
+    age = -getAudioLeadSeconds();
     phaseAge = 0.0f;
     phaseDuration = 4.5f;
     azimuth = 0.0f;
@@ -160,6 +160,7 @@ class EyeOfSauron : public Animation {
 
   void draw(float dt) override {
     age += dt;
+    if (age < 0.0f) return;
     updateGaze(dt);
     Vector3 look(sinf(azimuth), elevation, cosf(azimuth));
     look.normalize();
@@ -169,7 +170,6 @@ class EyeOfSauron : public Animation {
     drawSearchlight(eye, look);
     drawEye(eye, look);
 
-    if (age >= DURATION) state = state_t::INACTIVE;
   }
 };
 

@@ -136,7 +136,7 @@ class CubeBleManager(
             setState(ConnectionState.CONNECTED)
             onStatus("Connected to Mega Cube")
             mainHandler.postDelayed({ configureAudioLatency() }, 600)
-            mainHandler.postDelayed({ selectAnimation(30) }, 1000)
+            mainHandler.postDelayed({ selectAnimation(31) }, 1000)
         }
 
         @Deprecated("Deprecated in API 33")
@@ -205,6 +205,8 @@ class CubeBleManager(
     }
 
     fun disconnect() {
+        onEvent("MATRIX_STOP")
+        onEvent("SAURON_STOP")
         gatt?.disconnect()
         gatt?.close()
         gatt = null
@@ -213,6 +215,8 @@ class CubeBleManager(
     }
 
     fun selectAnimation(id: Int) {
+        onEvent(if (id == 19) "MATRIX_START" else "MATRIX_STOP")
+        onEvent(if (id == 27) "SAURON_START" else "SAURON_STOP")
         if (id == 30 || id == 31) {
             onEvent("OPENING")
             mainHandler.postDelayed({ send("ANIMATION " + id) }, 650)

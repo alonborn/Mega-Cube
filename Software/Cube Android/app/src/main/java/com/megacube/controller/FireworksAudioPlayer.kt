@@ -28,6 +28,14 @@ class FireworksAudioPlayer(context: Context) {
     private val openingPlayer = MediaPlayer.create(context, R.raw.opening_intro).apply {
         setVolume(1.0f, 1.0f)
     }
+    private val matrixPlayer = MediaPlayer.create(context, R.raw.matrix_2).apply {
+        isLooping = true
+        setVolume(1.0f, 1.0f)
+    }
+    private val sauronPlayer = MediaPlayer.create(context, R.raw.eye_of_sauron).apply {
+        isLooping = true
+        setVolume(1.0f, 1.0f)
+    }
     private val rainPlayer = MediaPlayer.create(context, R.raw.storm_rain_loop).apply {
         isLooping = true
         setVolume(0.22f, 0.22f)
@@ -87,6 +95,36 @@ class FireworksAudioPlayer(context: Context) {
     @Synchronized
     fun playEvent(event: String) {
         when (event) {
+            "SAURON_START" -> {
+                Log.d(TAG, "playing Eye of Sauron soundtrack")
+                if (sauronPlayer.isPlaying) sauronPlayer.pause()
+                sauronPlayer.setOnSeekCompleteListener { player ->
+                    player.setOnSeekCompleteListener(null)
+                    player.start()
+                }
+                sauronPlayer.seekTo(0)
+                return
+            }
+            "SAURON_STOP" -> {
+                if (sauronPlayer.isPlaying) sauronPlayer.pause()
+                sauronPlayer.seekTo(0)
+                return
+            }
+            "MATRIX_START" -> {
+                Log.d(TAG, "playing Matrix soundtrack")
+                if (matrixPlayer.isPlaying) matrixPlayer.pause()
+                matrixPlayer.setOnSeekCompleteListener { player ->
+                    player.setOnSeekCompleteListener(null)
+                    player.start()
+                }
+                matrixPlayer.seekTo(0)
+                return
+            }
+            "MATRIX_STOP" -> {
+                if (matrixPlayer.isPlaying) matrixPlayer.pause()
+                matrixPlayer.seekTo(0)
+                return
+            }
             "OPENING" -> {
                 Log.d(TAG, "playing opening intro")
                 if (openingPlayer.isPlaying) openingPlayer.pause()
@@ -126,6 +164,8 @@ class FireworksAudioPlayer(context: Context) {
 
     fun release() {
         openingPlayer.release()
+        matrixPlayer.release()
+        sauronPlayer.release()
         rainPlayer.release()
         soundPool.release()
     }

@@ -7,6 +7,7 @@
 #include "Atoms.h"
 #include "Aurora.h"
 #include "BlackHole.h"
+#include "Blackout.h"
 #include "ChannelColorTest.h"
 #include "ChannelTest.h"
 #include "DNATunnel.h"
@@ -52,6 +53,7 @@ Arrows arrows;
 Atoms atoms;
 Aurora aurora;
 BlackHole black_hole;
+Blackout blackout;
 ChannelColorTest channelcolortest;
 ChannelTest channeltest;
 DNATunnel dna_tunnel;
@@ -89,7 +91,7 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &spotted_sphere, &supernova, &aurora, &black_hole,
                            &metaballs, &electric_storm, &dna_tunnel,
                            &eye_of_sauron, &white_test, &red_test, &opening,
-                           &opening2};
+                           &opening2, &blackout};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -260,6 +262,7 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Red Test", "All LEDs pulse red", 0, &red_test},
       {"Opening", "Connection opening animation", 0, &opening},
       {"Opening 2", "Colorful connection opening animation", 0, &opening2},
+      {"Blackout", "All LEDs off", 0, &blackout},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

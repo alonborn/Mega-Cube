@@ -43,6 +43,7 @@
 #define ANIMATION_RED_TEST 29
 #define ANIMATION_OPENING 30
 #define ANIMATION_OPENING2 31
+#define ANIMATION_BLACKOUT 32
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE

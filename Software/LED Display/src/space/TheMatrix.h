@@ -3,9 +3,13 @@
 
 #include "Animation.h"
 
+float getAudioLeadSeconds();
+
 class TheMatrix : public Animation {
  private:
   static const uint8_t STREAMS = 80;
+  static constexpr float INTRO_DURATION = 5.67f;
+  static constexpr float TRACK_DURATION = 46.224f;
 
   struct Stream {
     uint8_t x;
@@ -17,6 +21,7 @@ class TheMatrix : public Animation {
   };
 
   Stream streams[STREAMS];
+  float age = 0.0f;
 
   void resetStream(uint8_t i, bool start_inside) {
     streams[i].x = random(0, Display::width);
@@ -31,19 +36,23 @@ class TheMatrix : public Animation {
  public:
   void init() override {
     state = state_t::RUNNING;
-    timer_running = config.animation.plasma.runtime;
-    for (uint8_t i = 0; i < STREAMS; i++) resetStream(i, true);
+    age = -getAudioLeadSeconds();
+    for (uint8_t i = 0; i < STREAMS; i++) resetStream(i, false);
   }
 
   void draw(float dt) override {
     setMotionBlur(190);
-
-    if (timer_running.update()) {
-      state = state_t::INACTIVE;
-      return;
+    age += dt;
+    if (age >= TRACK_DURATION) {
+      age -= TRACK_DURATION;
+      for (uint8_t i = 0; i < STREAMS; ++i) resetStream(i, false);
     }
+    if (age < INTRO_DURATION) return;
 
-    for (uint8_t i = 0; i < STREAMS; i++) {
+    const float rainAge = age - INTRO_DURATION;
+    uint8_t visibleStreams = static_cast<uint8_t>(4.0f + rainAge * 30.0f);
+    if (visibleStreams > STREAMS) visibleStreams = STREAMS;
+    for (uint8_t i = 0; i < visibleStreams; i++) {
       Stream &stream = streams[i];
       stream.y -= stream.speed * dt;
       if (stream.y < -stream.length) resetStream(i, false);

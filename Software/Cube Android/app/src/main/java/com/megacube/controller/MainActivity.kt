@@ -71,6 +71,7 @@ private val animations = listOf(
     AnimationChoice(29, "Red Test"),
     AnimationChoice(30, "Opening"),
     AnimationChoice(31, "Opening 2"),
+    AnimationChoice(32, "Blackout"),
 )
 
 class MainActivity : ComponentActivity() {
