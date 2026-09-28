@@ -266,6 +266,7 @@ class LightChase : public Animation {
 
     drawPulse(age, 3.75f, Color(15, 70, 255));
     drawPulse(age, 11.75f, Color(255, 18, 42));
+    drawPulse(age, 22.75f, Color(15, 70, 255));
     drawDebris(dt);
     drawExplosion(age, 92.0f);
     drawExplosion(age, 96.0f);
