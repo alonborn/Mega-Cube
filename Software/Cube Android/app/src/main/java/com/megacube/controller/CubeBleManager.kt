@@ -79,6 +79,10 @@ class CubeBleManager(
         if (message.startsWith("EVENT ")) {
             Log.d("MegaCubeBle", "notification: ")
             onEvent(message.removePrefix("EVENT "))
+        } else if (message.startsWith("OK ANIMATION ")) {
+            val animationId = message.substringAfterLast(" ").trim().toIntOrNull()
+            if (animationId == 34) onEvent("LIGHT_CHASE_START")
+            onStatus(message)
         } else {
             onStatus(message)
         }
@@ -205,6 +209,7 @@ class CubeBleManager(
     }
 
     fun disconnect() {
+        onEvent("LIGHT_CHASE_STOP")
         onEvent("MATRIX_STOP")
         onEvent("SAURON_STOP")
         gatt?.disconnect()
@@ -215,6 +220,7 @@ class CubeBleManager(
     }
 
     fun selectAnimation(id: Int) {
+        if (id != 34) onEvent("LIGHT_CHASE_STOP")
         onEvent(if (id == 19) "MATRIX_START" else "MATRIX_STOP")
         onEvent(if (id == 27) "SAURON_START" else "SAURON_STOP")
         if (id == 30 || id == 31) {

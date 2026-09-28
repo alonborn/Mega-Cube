@@ -32,6 +32,10 @@ class FireworksAudioPlayer(context: Context) {
         isLooping = true
         setVolume(1.0f, 1.0f)
     }
+    private val lightChasePlayer = MediaPlayer.create(context, R.raw.light_chase).apply {
+        isLooping = false
+        setVolume(1.0f, 1.0f)
+    }
     private val sauronPlayer = MediaPlayer.create(context, R.raw.eye_of_sauron).apply {
         isLooping = true
         setVolume(1.0f, 1.0f)
@@ -135,6 +139,21 @@ class FireworksAudioPlayer(context: Context) {
                 openingPlayer.seekTo(0)
                 return
             }
+            "LIGHT_CHASE_START" -> {
+                Log.d(TAG, "playing Light Chase soundtrack")
+                if (lightChasePlayer.isPlaying) lightChasePlayer.pause()
+                lightChasePlayer.setOnSeekCompleteListener { player ->
+                    player.setOnSeekCompleteListener(null)
+                    player.start()
+                }
+                lightChasePlayer.seekTo(0)
+                return
+            }
+            "LIGHT_CHASE_STOP" -> {
+                if (lightChasePlayer.isPlaying) lightChasePlayer.pause()
+                lightChasePlayer.seekTo(0)
+                return
+            }
             "STORM_START" -> {
                 if (!rainPlayer.isPlaying) rainPlayer.start()
                 return
@@ -165,6 +184,7 @@ class FireworksAudioPlayer(context: Context) {
     fun release() {
         openingPlayer.release()
         matrixPlayer.release()
+        lightChasePlayer.release()
         sauronPlayer.release()
         rainPlayer.release()
         soundPool.release()
