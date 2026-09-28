@@ -45,13 +45,13 @@ void selectAnimation(uint8_t id) {
 const char* animationName(uint8_t id) {
   static const char* const names[] = {
       "LED TEST",       "ACCELEROMETER", "ARROWS",         "ATOMS",
-      "CUBE",           "FIREWORKS",     "HELIX",          "LIFE",
+      "CUBE",           "FIREWORKS",     "HELIX 1",          "LIFE",
       "MARIO",          "PLASMA",        "PONG",           "SCROLLER",
       "SINUS",          "SPECTRUM",      "STARFIELD",      "FAIRY LIGHTS",
       "MULTI LIGHTS",   "CHANNEL TEST",  "CHANNEL COLORS", "THE MATRIX",
       "SPOTTED SPHERE", "SUPERNOVA",     "AURORA",         "BLACK HOLE",
       "METABALLS",      "ELECTRIC STORM", "DNA TUNNEL",    "EYE OF SAURON",
-      "WHITE TEST",      "RED TEST",        "OPENING",        "OPENING 2",      "BLACKOUT"};
+      "WHITE TEST",      "RED TEST",        "OPENING",        "OPENING 2",      "BLACKOUT",        "HELIX 2",        "LIGHT CHASE"};
   return id < sizeof(names) / sizeof(names[0]) ? names[id] : "UNKNOWN";
 }
 
@@ -186,9 +186,9 @@ void handleTouch() {
 
   if (y < 180 || y > 232) return;
   if (x < 108) {
-    selectAnimation(animationId == 0 ? 32 : animationId - 1);
+    selectAnimation(animationId == 0 ? 34 : animationId - 1);
   } else if (x < 208) {
-    selectAnimation(animationId >= 32 ? 0 : animationId + 1);
+    selectAnimation(animationId >= 34 ? 0 : animationId + 1);
   } else {
     sendToTeensy("PLAYLIST");
     notifyStatus("PLAYLIST");

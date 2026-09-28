@@ -55,7 +55,7 @@ data class AnimationChoice(val id: Int, val name: String)
 private val animations = listOf(
     AnimationChoice(3, "Atoms"),
     AnimationChoice(5, "Fireworks"),
-    AnimationChoice(6, "Helix"),
+    AnimationChoice(6, "Helix 1"),
     AnimationChoice(12, "Sinus"),
     AnimationChoice(14, "Starfield"),
     AnimationChoice(19, "The Matrix"),
@@ -72,6 +72,8 @@ private val animations = listOf(
     AnimationChoice(30, "Opening"),
     AnimationChoice(31, "Opening 2"),
     AnimationChoice(32, "Blackout"),
+    AnimationChoice(33, "Helix 2"),
+    AnimationChoice(34, "Light Chase"),
 )
 
 class MainActivity : ComponentActivity() {

@@ -15,8 +15,10 @@
 #include "EyeOfSauron.h"
 #include "Fireworks.h"
 #include "Helix.h"
+#include "Helix2.h"
 #include "LedTest.h"
 #include "Life.h"
+#include "LightChase.h"
 #include "Mario.h"
 #include "Metaballs.h"
 #include "Opening.h"
@@ -62,8 +64,10 @@ EyeOfSauron eye_of_sauron;
 Fireworks fireworks1;
 Fireworks fireworks2;
 Helix helix;
+Helix2 helix2;
 LedTest ledtest;
 Life life;
+LightChase light_chase;
 Mario mario;
 Metaballs metaballs;
 Opening opening;
@@ -91,7 +95,7 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &spotted_sphere, &supernova, &aurora, &black_hole,
                            &metaballs, &electric_storm, &dna_tunnel,
                            &eye_of_sauron, &white_test, &red_test, &opening,
-                           &opening2, &blackout};
+                           &opening2, &blackout, &helix2, &light_chase};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -228,7 +232,7 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Atoms", "Electons arround nucleas", 0, &atoms},
       {"Cube", "Cube in a cube", 0, &cube},
       {"Fireworks", "Fireing Fireworks", &FIREWORKS, &fireworks1},
-      {"Helix", "Double strand DNA", 0, &helix},
+      {"Helix 1", "Classic double strand DNA", 0, &helix},
       {"Life", "Game of Life 3D", 0, &life},
       {"Mario", "Super Mario Run", 0, &mario},
       {"Plasma", "Perlin noise plasma field", 0, &plasma},
@@ -263,6 +267,9 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Opening", "Connection opening animation", 0, &opening},
       {"Opening 2", "Colorful connection opening animation", 0, &opening2},
       {"Blackout", "All LEDs off", 0, &blackout},
+      {"Helix 2", "Single helixes crossing from different directions", 0, &helix2},
+      {"Light Chase", "Two light balls chasing and outsmarting each other", 0,
+       &light_chase},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

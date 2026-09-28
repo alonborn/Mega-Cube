@@ -44,6 +44,8 @@
 #define ANIMATION_OPENING 30
 #define ANIMATION_OPENING2 31
 #define ANIMATION_BLACKOUT 32
+#define ANIMATION_HELIX2 33
+#define ANIMATION_LIGHT_CHASE 34
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE
