@@ -17,7 +17,8 @@ class LightChase : public Animation {
   Vector3 direction;
   Vector3 axis;
   Vector3 targetAxis;
-  Particle debris[DEBRIS_COUNT];
+  Particle debris[2][DEBRIS_COUNT];
+  uint8_t debrisBank = 1;
   float age = 0.0f;
   float axisAge = 0.0f;
   float axisDuration = 3.0f;
@@ -82,8 +83,7 @@ class LightChase : public Animation {
     }
     if (time < 54.7f) return blend(1200.0f, 1550.0f, smooth((time - 50.0f) / 4.7f));
     if (time < 56.0f) return 0.0f;
-    if (time < 57.0f) return blend(900.0f, 1100.0f, smooth(time - 56.0f));
-    if (time < 90.0f) return 1100.0f;
+    if (time < 90.0f) return blend(1200.0f, 1550.0f, smooth((time - 56.0f) / 34.0f));
     if (time < 101.0f) return 0.0f;
     if (time < 108.0f) return blend(300.0f, 1550.0f, smooth((time - 101.0f) / 7.0f));
     if (time < 109.0f) return blend(1550.0f, 1050.0f, smooth(time - 108.0f));
@@ -129,28 +129,54 @@ class LightChase : public Animation {
     }
   }
 
+  void drawPulse(float time, float start, const Color &color) {
+    const float elapsed = time - start;
+    if (elapsed < 0.0f || elapsed >= 0.4f) return;
+
+    float envelope;
+    if (elapsed < 0.10f) {
+      envelope = smooth(elapsed / 0.10f);
+    } else if (elapsed < 0.16f) {
+      envelope = 1.0f;
+    } else {
+      envelope = 1.0f - smooth((elapsed - 0.16f) / 0.24f);
+    }
+
+    const uint8_t intensity = static_cast<uint8_t>(8.0f * envelope);
+    const Color pulse = color.scaled(intensity);
+    for (uint8_t x = 0; x < Display::width; ++x) {
+      for (uint8_t y = 0; y < Display::height; ++y) {
+        for (uint8_t z = 0; z < Display::depth; ++z) {
+          voxel_add(Vector3(x - CX, y - CY, z - CZ), pulse);
+        }
+      }
+    }
+  }
+
   void createDebris() {
+    debrisBank = (debrisBank + 1) % 2;
     for (uint8_t i = 0; i < DEBRIS_COUNT; ++i) {
       const Vector3 velocity = randomUnitVector() * noise.nextRandom(2.8f, 8.0f);
-      debris[i] = Particle(Vector3(0, 0, 0), velocity,
+      debris[debrisBank][i] = Particle(Vector3(0, 0, 0), velocity,
                             static_cast<uint8_t>(random(0, 72)), 1.0f,
                             noise.nextRandom(2.7f, 3.8f));
     }
   }
 
   void drawDebris(float dt) {
-    const Vector3 gravity(0.0f, -6.0f, 0.0f);
-    for (uint8_t i = 0; i < DEBRIS_COUNT; ++i) {
-      Particle &particle = debris[i];
+    for (uint8_t bank = 0; bank < 2; ++bank) {
+      for (uint8_t i = 0; i < DEBRIS_COUNT; ++i) {
+        Particle &particle = debris[bank][i];
       if (particle.brightness <= 0.0f) continue;
 
-      particle.move(dt, gravity);
+      particle.move(dt);
       particle.brightness =
           max(0.0f, particle.brightness - dt / particle.seconds);
       Color color(particle.hue, LavaPalette);
       if (random(0, 10) == 0) color = Color::WHITE;
-      voxel_add(particle.position,
-                color.scaled(static_cast<uint8_t>(particle.brightness * 255.0f)));
+        voxel_add(particle.position,
+                  color.scaled(static_cast<uint8_t>(particle.brightness * 255.0f)));
+      }
     }
   }
 
@@ -205,8 +231,10 @@ class LightChase : public Animation {
     axisAge = 0.0f;
     axisDuration = noise.nextRandom(2.0f, 4.0f);
     nextExplosion = 0;
-    for (uint8_t i = 0; i < DEBRIS_COUNT; ++i)
-      debris[i].brightness = 0.0f;
+    debrisBank = 1;
+    for (uint8_t bank = 0; bank < 2; ++bank)
+      for (uint8_t i = 0; i < DEBRIS_COUNT; ++i)
+        debris[bank][i].brightness = 0.0f;
     setMotionBlur(0);
   }
 
@@ -231,11 +259,13 @@ class LightChase : public Animation {
     }
 
     static const float explosionTimes[] = {92.0f, 96.0f, 100.0f, 103.0f};
-    while (nextExplosion < 4 && age >= explosionTimes[nextExplosion]) {
+    while (nextExplosion < 4 && age >= explosionTimes[nextExplosion] + EXPLOSION_LENGTH * 0.5f) {
       createDebris();
       ++nextExplosion;
     }
 
+    drawPulse(age, 3.75f, Color(15, 70, 255));
+    drawPulse(age, 11.75f, Color(255, 18, 42));
     drawDebris(dt);
     drawExplosion(age, 92.0f);
     drawExplosion(age, 96.0f);
