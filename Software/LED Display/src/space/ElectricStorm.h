@@ -37,6 +37,7 @@ class ElectricStorm : public Animation {
   bool impact_pending = false;
   bool impact_triggered = false;
   bool rain_active = false;
+  bool first_strike = true;
 
   void addSegment(const Vector3 &start, const Vector3 &end, float reveal,
                   uint8_t branch) {
@@ -110,7 +111,8 @@ class ElectricStorm : public Animation {
     sendAnimationEvent(impact_pending ? "THUNDER_BOOM" : "THUNDER");
     strike_active = true;
     strike_age = -getAudioLeadSeconds();
-    next_strike_delay = noise.nextRandom(0.25f, 1.35f);
+    next_strike_delay = first_strike ? 5.0f : noise.nextRandom(0.25f, 1.35f);
+    first_strike = false;
   }
 
   void createImpact() {
@@ -144,9 +146,10 @@ class ElectricStorm : public Animation {
   void init() override {
     state = state_t::RUNNING;
     age = 0.0f;
-    strike_age = STRIKE_DURATION;
-    next_strike_delay = 0.0f;
+    strike_age = 0.0f;
+    next_strike_delay = 15.0f;
     strike_active = false;
+    first_strike = true;
     strikes_until_impact = random(3, 7);
     rain_active = true;
     sendAnimationEvent("STORM_START");

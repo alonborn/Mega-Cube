@@ -11,6 +11,8 @@
 #include "ChannelColorTest.h"
 #include "ChannelTest.h"
 #include "DNATunnel.h"
+#include "DeLoreanFlight.h"
+#include "Universal.h"
 #include "ElectricStorm.h"
 #include "EyeOfSauron.h"
 #include "Fireworks.h"
@@ -68,6 +70,8 @@ Helix2 helix2;
 LedTest ledtest;
 Life life;
 LightChase light_chase;
+DeLoreanFlight delorean_flight;
+Universal universal;
 Mario mario;
 Metaballs metaballs;
 Opening opening;
@@ -95,7 +99,8 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &spotted_sphere, &supernova, &aurora, &black_hole,
                            &metaballs, &electric_storm, &dna_tunnel,
                            &eye_of_sauron, &white_test, &red_test, &opening,
-                           &opening2, &blackout, &helix2, &light_chase};
+                           &opening2, &blackout, &helix2, &light_chase,
+                           &delorean_flight, &universal};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -270,6 +275,9 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Helix 2", "Single helixes crossing from different directions", 0, &helix2},
       {"Light Chase", "Two light balls chasing and outsmarting each other", 0,
        &light_chase},
+      {"DeLorean Flight", "A DeLorean rises into an accelerating starfield", 0,
+       &delorean_flight},
+      {"Universal", "Rotating Earth and orbital studio title", 0, &universal},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

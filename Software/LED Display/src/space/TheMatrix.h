@@ -9,7 +9,6 @@ class TheMatrix : public Animation {
  private:
   static const uint8_t STREAMS = 80;
   static constexpr float INTRO_DURATION = 5.67f;
-  static constexpr float TRACK_DURATION = 46.224f;
 
   struct Stream {
     uint8_t x;
@@ -43,10 +42,6 @@ class TheMatrix : public Animation {
   void draw(float dt) override {
     setMotionBlur(190);
     age += dt;
-    if (age >= TRACK_DURATION) {
-      age -= TRACK_DURATION;
-      for (uint8_t i = 0; i < STREAMS; ++i) resetStream(i, false);
-    }
     if (age < INTRO_DURATION) return;
 
     const float rainAge = age - INTRO_DURATION;

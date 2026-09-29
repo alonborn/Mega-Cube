@@ -46,6 +46,8 @@
 #define ANIMATION_BLACKOUT 32
 #define ANIMATION_HELIX2 33
 #define ANIMATION_LIGHT_CHASE 34
+#define ANIMATION_DELOREAN_FLIGHT 35
+#define ANIMATION_UNIVERSAL 36
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE

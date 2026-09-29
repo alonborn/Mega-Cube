@@ -4,6 +4,9 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.SoundPool
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 
 class FireworksAudioPlayer(context: Context) {
@@ -32,6 +35,10 @@ class FireworksAudioPlayer(context: Context) {
         isLooping = true
         setVolume(1.0f, 1.0f)
     }
+    private val universalPlayer = MediaPlayer.create(context, R.raw.universal_intro).apply {
+        isLooping = false
+        setVolume(1.0f, 1.0f)
+    }
     private val lightChasePlayer = MediaPlayer.create(context, R.raw.light_chase).apply {
         isLooping = false
         setVolume(1.0f, 1.0f)
@@ -40,9 +47,22 @@ class FireworksAudioPlayer(context: Context) {
         isLooping = true
         setVolume(1.0f, 1.0f)
     }
+    private val rainTargetVolume = 0.22f
+    private val rainFadeDurationMs = 5000L
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val rainPlayer = MediaPlayer.create(context, R.raw.storm_rain_loop).apply {
         isLooping = true
-        setVolume(0.22f, 0.22f)
+        setVolume(0f, 0f)
+    }
+    private var rainFadeStartedAt = 0L
+    private val rainFade = object : Runnable {
+        override fun run() {
+            val progress = ((SystemClock.elapsedRealtime() - rainFadeStartedAt).toFloat() /
+                rainFadeDurationMs).coerceIn(0f, 1f)
+            val volume = rainTargetVolume * progress
+            rainPlayer.setVolume(volume, volume)
+            if (progress < 1f) mainHandler.postDelayed(this, 50L)
+        }
     }
     private val soundTypes = mutableMapOf<Int, String>()
     private val loadedSounds = mutableMapOf<String, MutableList<Int>>()
@@ -139,6 +159,21 @@ class FireworksAudioPlayer(context: Context) {
                 openingPlayer.seekTo(0)
                 return
             }
+            "UNIV_START" -> {
+                Log.d(TAG, "playing Universal opening soundtrack")
+                if (universalPlayer.isPlaying) universalPlayer.pause()
+                universalPlayer.setOnSeekCompleteListener { player ->
+                    player.setOnSeekCompleteListener(null)
+                    player.start()
+                }
+                universalPlayer.seekTo(0)
+                return
+            }
+            "UNIVERSAL_STOP" -> {
+                if (universalPlayer.isPlaying) universalPlayer.pause()
+                universalPlayer.seekTo(0)
+                return
+            }
             "LIGHT_CHASE_START" -> {
                 Log.d(TAG, "playing Light Chase soundtrack")
                 if (lightChasePlayer.isPlaying) lightChasePlayer.pause()
@@ -155,10 +190,18 @@ class FireworksAudioPlayer(context: Context) {
                 return
             }
             "STORM_START" -> {
-                if (!rainPlayer.isPlaying) rainPlayer.start()
+                mainHandler.removeCallbacks(rainFade)
+                rainPlayer.setVolume(0f, 0f)
+                if (rainPlayer.isPlaying) rainPlayer.pause()
+                rainPlayer.seekTo(0)
+                rainPlayer.start()
+                rainFadeStartedAt = SystemClock.elapsedRealtime()
+                mainHandler.post(rainFade)
                 return
             }
             "STORM_STOP" -> {
+                mainHandler.removeCallbacks(rainFade)
+                rainPlayer.setVolume(0f, 0f)
                 if (rainPlayer.isPlaying) rainPlayer.pause()
                 rainPlayer.seekTo(0)
                 return
@@ -185,7 +228,9 @@ class FireworksAudioPlayer(context: Context) {
         openingPlayer.release()
         matrixPlayer.release()
         lightChasePlayer.release()
+        universalPlayer.release()
         sauronPlayer.release()
+        mainHandler.removeCallbacks(rainFade)
         rainPlayer.release()
         soundPool.release()
     }

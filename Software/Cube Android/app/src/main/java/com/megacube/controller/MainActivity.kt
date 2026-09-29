@@ -53,27 +53,29 @@ import androidx.compose.ui.unit.dp
 data class AnimationChoice(val id: Int, val name: String)
 
 private val animations = listOf(
+    AnimationChoice(32, "Blackout"),
+    AnimationChoice(5, "Fireworks +S"),
+    AnimationChoice(19, "The Matrix +S"),
+    AnimationChoice(25, "Electric Storm +S"),
+    AnimationChoice(27, "Eye of Sauron +S"),
+    AnimationChoice(30, "Opening +S"),
+    AnimationChoice(31, "Opening 2 +S"),
+    AnimationChoice(34, "Light Chase +S"),
+    AnimationChoice(36, "Universal +S"),
     AnimationChoice(3, "Atoms"),
-    AnimationChoice(5, "Fireworks"),
     AnimationChoice(6, "Helix 1"),
     AnimationChoice(12, "Sinus"),
     AnimationChoice(14, "Starfield"),
-    AnimationChoice(19, "The Matrix"),
     AnimationChoice(20, "Spotted Sphere"),
     AnimationChoice(21, "Supernova"),
     AnimationChoice(22, "Aurora"),
     AnimationChoice(23, "Black Hole"),
     AnimationChoice(24, "Metaballs"),
-    AnimationChoice(25, "Electric Storm"),
     AnimationChoice(26, "DNA Tunnel"),
-    AnimationChoice(27, "Eye of Sauron"),
     AnimationChoice(28, "White Test"),
     AnimationChoice(29, "Red Test"),
-    AnimationChoice(30, "Opening"),
-    AnimationChoice(31, "Opening 2"),
-    AnimationChoice(32, "Blackout"),
     AnimationChoice(33, "Helix 2"),
-    AnimationChoice(34, "Light Chase"),
+    AnimationChoice(35, "DeLorean Flight"),
 )
 
 class MainActivity : ComponentActivity() {

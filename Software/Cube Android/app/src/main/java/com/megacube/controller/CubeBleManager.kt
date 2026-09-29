@@ -116,6 +116,7 @@ class CubeBleManager(
                 gatt.discoverServices()
             } else {
                 onEvent("STORM_STOP")
+            onEvent("UNIVERSAL_STOP")
                 commandCharacteristic = null
                 setState(ConnectionState.DISCONNECTED)
                 onStatus("Cube disconnected")
@@ -212,6 +213,7 @@ class CubeBleManager(
         onEvent("LIGHT_CHASE_STOP")
         onEvent("MATRIX_STOP")
         onEvent("SAURON_STOP")
+        onEvent("UNIVERSAL_STOP")
         gatt?.disconnect()
         gatt?.close()
         gatt = null
@@ -223,6 +225,7 @@ class CubeBleManager(
         if (id != 34) onEvent("LIGHT_CHASE_STOP")
         onEvent(if (id == 19) "MATRIX_START" else "MATRIX_STOP")
         onEvent(if (id == 27) "SAURON_START" else "SAURON_STOP")
+        if (id != 36) onEvent("UNIVERSAL_STOP")
         if (id == 30 || id == 31) {
             onEvent("OPENING")
             mainHandler.postDelayed({ send("ANIMATION " + id) }, 650)
