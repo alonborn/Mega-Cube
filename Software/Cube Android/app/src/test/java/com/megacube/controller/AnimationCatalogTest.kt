@@ -8,9 +8,11 @@ class AnimationCatalogTest {
         val entries = AnimationCatalog.choices
         assertEquals(entries.size, entries.map { it.id }.toSet().size)
         entries.forEach { AnimationCatalog.packets(it) }
-        assertEquals(listOf(AnimationChoice(40, "Walking Man")), AnimationCatalog.additions(40))
-        assertTrue(AnimationCatalog.additions(41).isEmpty())
-        assertEquals(setOf(38, 39, 40), AnimationCatalog.additions(38).map { it.id }.toSet())
+        assertEquals(listOf(AnimationChoice(40, "Walking Man"), AnimationChoice(41, "Jumping Man"), AnimationChoice(42, "Running Man")), AnimationCatalog.additions(40))
+        assertEquals(listOf(AnimationChoice(41, "Jumping Man"), AnimationChoice(42, "Running Man")), AnimationCatalog.additions(41))
+        assertEquals(listOf(AnimationChoice(42, "Running Man")), AnimationCatalog.additions(42))
+        assertTrue(AnimationCatalog.additions(43).isEmpty())
+        assertEquals(setOf(38, 39, 40, 41, 42), AnimationCatalog.additions(38).map { it.id }.toSet())
     }
 
     @Test fun newAnimationUsesDefaultMtuAndPreservesIdAndFullName() {

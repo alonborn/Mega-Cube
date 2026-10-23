@@ -25,6 +25,9 @@ int main() {
       const Point foot = inCube(pose.feet[side]);
       assert(foot.y >= -7.5001f && foot.y < -6.3f);
       assert(fabsf(foot.x) < 7.5f && fabsf(foot.z) < 7.5f);
+      assert(fabsf(pose.hips[side].z) > 0.5f);
+      assert(fabsf(pose.feet[side].z) >= 0.3999f && fabsf(pose.feet[side].z) <= 1.2001f);
+      assert(fabsf(pose.knees[side].z - (pose.hips[side].z + pose.feet[side].z) * 0.5f) < 0.0001f);
       assert(fabsf(pose.feet[side].x - opposite.feet[1 - side].x) < 0.0001f);
       assert(fabsf(pose.feet[side].y - opposite.feet[1 - side].y) < 0.0001f);
     }
@@ -45,5 +48,7 @@ int main() {
   assert(at(0.75f).hands[0].x < at(0.75f).hands[1].x);
   assert(at(0.25f).headLift > 0.99f && at(0.25f).headTilt > 0.29f);
   assert(at(0.75f).headLift > 0.99f && at(0.75f).headTilt < -0.29f);
-  puts("Walking Man: scissor motion, opposite arms, floor contact, head bounce/tilt and continuous loop OK");
+  assert(fabsf(at(0).feet[0].z - at(0.5f).feet[0].z) > 0.79f);
+  assert(fabsf(at(0).hands[0].z - at(0.5f).hands[0].z) > 0.99f);
+  puts("Walking Man: 3D limb swing, scissor motion, opposite arms, floor contact, moving head and continuous loop OK");
 }

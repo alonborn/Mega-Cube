@@ -31,6 +31,8 @@ object AnimationCatalog {
         AnimationChoice(35, "DeLorean Flight"),
         AnimationChoice(37, "Yoda"),
         AnimationChoice(40, "Walking Man"),
+        AnimationChoice(41, "Jumping Man"),
+        AnimationChoice(42, "Running Man"),
     )
 
     fun additions(defaultCount: Int): List<AnimationChoice> {

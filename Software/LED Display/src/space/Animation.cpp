@@ -40,6 +40,8 @@
 #include "Twinkels.h"
 #include "WhiteTest.h"
 #include "WalkingMan.h"
+#include "JumpingMan.h"
+#include "RunningMan.h"
 #include "Yoda.h"
 #include "Cube.h"
 /*------------------------------------------------------------------------------
@@ -82,6 +84,8 @@ Metaballs metaballs;
 MusicBalls music_balls;
 MusicEqualizer music_equalizer;
 WalkingMan walking_man;
+JumpingMan jumping_man;
+RunningMan running_man;
 Opening opening;
 Opening2 opening2;
 Plasma plasma;
@@ -109,7 +113,8 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &eye_of_sauron, &white_test, &red_test, &opening,
                            &opening2, &blackout, &helix2, &light_chase,
                            &delorean_flight, &universal, &yoda,
-                           &music_balls, &music_equalizer, &walking_man};
+                           &music_balls, &music_equalizer, &walking_man, &jumping_man,
+                           &running_man};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -291,6 +296,8 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Music Balls", "Live music drives antipodal light balls", 0, &music_balls},
       {"Music Equalizer", "Live eight-band spectrum waterfall", 0, &music_equalizer},
       {"Walking Man", "A sparse stick figure walking in place", 0, &walking_man},
+      {"Jumping Man", "A stick figure crouches, jumps and lands", 0, &jumping_man},
+      {"Running Man", "A leaning stick figure runs with high knees", 0, &running_man},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

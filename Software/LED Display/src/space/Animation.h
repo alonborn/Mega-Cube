@@ -52,6 +52,8 @@
 #define ANIMATION_MUSIC_BALLS 38
 #define ANIMATION_MUSIC_EQUALIZER 39
 #define ANIMATION_WALKING_MAN 40
+#define ANIMATION_JUMPING_MAN 41
+#define ANIMATION_RUNNING_MAN 42
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE
