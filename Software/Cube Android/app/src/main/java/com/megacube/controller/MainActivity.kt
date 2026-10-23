@@ -1,6 +1,9 @@
 package com.megacube.controller
 
 import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -35,10 +38,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,34 +56,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
-data class AnimationChoice(val id: Int, val name: String)
-
-private val animations = listOf(
-    AnimationChoice(32, "Blackout"),
-    AnimationChoice(5, "Fireworks +S"),
-    AnimationChoice(19, "The Matrix +S"),
-    AnimationChoice(25, "Electric Storm +S"),
-    AnimationChoice(27, "Eye of Sauron +S"),
-    AnimationChoice(30, "Opening +S"),
-    AnimationChoice(31, "Opening 2 +S"),
-    AnimationChoice(34, "Light Chase +S"),
-    AnimationChoice(36, "Universal +S"),
-    AnimationChoice(3, "Atoms"),
-    AnimationChoice(6, "Helix 1"),
-    AnimationChoice(12, "Sinus"),
-    AnimationChoice(14, "Starfield"),
-    AnimationChoice(20, "Spotted Sphere"),
-    AnimationChoice(21, "Supernova"),
-    AnimationChoice(22, "Aurora"),
-    AnimationChoice(23, "Black Hole"),
-    AnimationChoice(24, "Metaballs"),
-    AnimationChoice(26, "DNA Tunnel"),
-    AnimationChoice(28, "White Test"),
-    AnimationChoice(29, "Red Test"),
-    AnimationChoice(33, "Helix 2"),
-    AnimationChoice(35, "DeLorean Flight"),
-)
+private val animations = AnimationCatalog.choices
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,16 +75,66 @@ private fun MegaCubeApp() {
     var connection by remember { mutableStateOf(ConnectionState.DISCONNECTED) }
     var status by remember { mutableStateOf("Ready") }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    var activeAnimation by remember { mutableIntStateOf(-1) }
+    var foreground by remember { mutableStateOf(true) }
+    var liveEnabled by remember { mutableStateOf(true) }
+    var sensitivity by remember { mutableFloatStateOf(1f) }
+    var liveLevel by remember { mutableFloatStateOf(0f) }
+    var liveStatus by remember { mutableStateOf("Microphone off") }
+    var microphonePermission by remember { mutableStateOf(
+        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    ) }
+    var pendingLiveAnimation by remember { mutableStateOf<Int?>(null) }
     val fireworksAudio = remember { FireworksAudioPlayer(context) }
     val manager = remember {
         CubeBleManager(
             context,
-            onDevicesChanged = { devices = it },
-            onConnectionChanged = { connection = it },
-            onStatus = { status = it },
-            onEvent = fireworksAudio::playEvent,
+            onDevicesChanged = { value -> mainHandler.post { devices = value } },
+            onConnectionChanged = { value -> mainHandler.post { connection = value } },
+            onStatus = { message -> mainHandler.post {
+                status = message
+                when {
+                    message.startsWith("OK ANIMATION ") -> activeAnimation = message.substringAfterLast(" ").toIntOrNull() ?: -1
+                    message.startsWith("STATUS ANIMATION ") -> activeAnimation = message.split(" ").getOrNull(2)?.toIntOrNull() ?: -1
+                    message == "OK PLAYLIST" || message.startsWith("STATUS PLAYLIST ") -> activeAnimation = -1
+                }
+            } },
+            onEvent = { event -> mainHandler.post { fireworksAudio.playEvent(event) } },
         )
     }
+    val microphone = remember {
+        var frames = 0
+        LiveMusicMicrophone(
+            onFrame = { features ->
+                manager.sendMusic(features)
+                if (++frames % 4 == 0) mainHandler.post { liveLevel = features.level / 255f }
+            },
+            onStatus = { liveStatus = it },
+        )
+    }
+    val microphoneLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        microphonePermission = granted
+        liveEnabled = granted
+        if (granted) pendingLiveAnimation?.let(manager::selectAnimation)
+        else status = "Microphone permission is required"
+        pendingLiveAnimation = null
+    }
+
+    LaunchedEffect(connection, activeAnimation, foreground, liveEnabled, microphonePermission) {
+        if (connection == ConnectionState.CONNECTED && activeAnimation in 38..39 &&
+            foreground && liveEnabled && microphonePermission) {
+            microphone.start()
+        } else {
+            microphone.stop()
+            manager.stopMusic()
+            liveLevel = 0f
+            liveStatus = "Microphone off"
+        }
+    }
+    LaunchedEffect(sensitivity) { microphone.sensitivity = sensitivity }
 
     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -115,15 +149,44 @@ private fun MegaCubeApp() {
     }
 
     DisposableEffect(Unit) {
+        val lifecycle = (context as ComponentActivity).lifecycle
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) foreground = true
+            if (event == Lifecycle.Event.ON_STOP) foreground = false
+        }
+        lifecycle.addObserver(observer)
         onDispose {
-            manager.disconnect()
+            lifecycle.removeObserver(observer)
+            microphone.stop()
+            manager.close()
             fireworksAudio.release()
         }
     }
 
     MaterialTheme {
         if (connection == ConnectionState.CONNECTED) {
-            ControlScreen(status, manager)
+            ControlScreen(status, manager,
+                onSelect = { id ->
+                    if (id in 38..39) {
+                        liveEnabled = true
+                        if (!microphonePermission) {
+                            pendingLiveAnimation = id
+                            microphoneLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        } else manager.selectAnimation(id)
+                    } else manager.selectAnimation(id)
+                },
+                live = activeAnimation in 38..39,
+                liveEnabled = liveEnabled,
+                liveStatus = liveStatus,
+                liveLevel = liveLevel,
+                sensitivity = sensitivity,
+                onSensitivity = { sensitivity = it },
+                onLiveEnabled = { enabled ->
+                    if (enabled && !microphonePermission)
+                        microphoneLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    else liveEnabled = enabled
+                },
+            )
         } else {
             DeviceScreen(
                 devices = devices,
@@ -214,6 +277,14 @@ private fun DeviceScreen(
 private fun ControlScreen(
     status: String,
     manager: CubeBleManager,
+    onSelect: (Int) -> Unit,
+    live: Boolean,
+    liveEnabled: Boolean,
+    liveStatus: String,
+    liveLevel: Float,
+    sensitivity: Float,
+    onSensitivity: (Float) -> Unit,
+    onLiveEnabled: (Boolean) -> Unit,
 ) {
     var brightness by remember { mutableFloatStateOf(180f) }
 
@@ -224,6 +295,20 @@ private fun ControlScreen(
         ) {
             Text("CONNECTED", color = Color(0xFF18864B), fontWeight = FontWeight.Bold)
             Text(status, color = Color.Gray)
+
+            if (live) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column {
+                        Text("Live microphone", fontWeight = FontWeight.Medium)
+                        Text(liveStatus, color = Color.Gray)
+                    }
+                    Switch(checked = liveEnabled, onCheckedChange = onLiveEnabled)
+                }
+                LinearProgressIndicator(progress = { liveLevel }, modifier = Modifier.fillMaxWidth())
+                Text("Sensitivity ${"%.1f".format(sensitivity)}x")
+                Slider(value = sensitivity, onValueChange = onSensitivity, valueRange = 0.5f..6f)
+            }
 
             Text("Animation", style = MaterialTheme.typography.titleLarge)
             LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -238,7 +323,7 @@ private fun ControlScreen(
                 items(animations, key = { it.id }) { animation ->
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable {
-                            manager.selectAnimation(animation.id)
+                            onSelect(animation.id)
                         },
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0ED)),
                         shape = RoundedCornerShape(6.dp),

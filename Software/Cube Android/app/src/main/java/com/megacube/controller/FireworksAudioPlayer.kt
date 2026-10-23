@@ -16,6 +16,7 @@ class FireworksAudioPlayer(context: Context) {
         private const val EXPLOSION = "EXPLOSION"
         private const val THUNDER = "THUNDER"
         private const val THUNDER_BOOM = "THUNDER_BOOM"
+    private const val SINUS_FADE_DURATION_MS = 7000L
     }
 
     private val soundPool = SoundPool.Builder()
@@ -33,6 +34,10 @@ class FireworksAudioPlayer(context: Context) {
     }
     private val matrixPlayer = MediaPlayer.create(context, R.raw.matrix_2).apply {
         isLooping = true
+        setVolume(1.0f, 1.0f)
+    }
+    private val sinusPlayer = MediaPlayer.create(context, R.raw.sinus_wave).apply {
+        isLooping = false
         setVolume(1.0f, 1.0f)
     }
     private val universalPlayer = MediaPlayer.create(context, R.raw.universal_intro).apply {
@@ -53,6 +58,16 @@ class FireworksAudioPlayer(context: Context) {
     private val rainPlayer = MediaPlayer.create(context, R.raw.storm_rain_loop).apply {
         isLooping = true
         setVolume(0f, 0f)
+    }
+    private var sinusFadeStartedAt = 0L
+    private val sinusFade = object : Runnable {
+        override fun run() {
+            val progress = ((SystemClock.elapsedRealtime() - sinusFadeStartedAt).toFloat() /
+                SINUS_FADE_DURATION_MS).coerceIn(0f, 1f)
+            val volume = progress * progress * (3f - 2f * progress)
+            sinusPlayer.setVolume(volume, volume)
+            if (progress < 1f) mainHandler.postDelayed(this, 50L)
+        }
     }
     private var rainFadeStartedAt = 0L
     private val rainFade = object : Runnable {
@@ -119,6 +134,18 @@ class FireworksAudioPlayer(context: Context) {
     @Synchronized
     fun playEvent(event: String) {
         when (event) {
+            "LIVE_START" -> {
+                mainHandler.removeCallbacks(rainFade)
+                mainHandler.removeCallbacks(sinusFade)
+                pendingEvents.clear()
+                soundPool.autoPause()
+                listOf(openingPlayer, matrixPlayer, sinusPlayer, universalPlayer,
+                    lightChasePlayer, sauronPlayer, rainPlayer).forEach { player ->
+                    player.setOnSeekCompleteListener(null)
+                    if (player.isPlaying) player.pause()
+                }
+                return
+            }
             "SAURON_START" -> {
                 Log.d(TAG, "playing Eye of Sauron soundtrack")
                 if (sauronPlayer.isPlaying) sauronPlayer.pause()
@@ -132,6 +159,28 @@ class FireworksAudioPlayer(context: Context) {
             "SAURON_STOP" -> {
                 if (sauronPlayer.isPlaying) sauronPlayer.pause()
                 sauronPlayer.seekTo(0)
+                return
+            }
+            "SINUS_START" -> {
+                Log.d(TAG, "playing Sinus Wave soundtrack with 7s fade-in")
+                mainHandler.removeCallbacks(sinusFade)
+                if (sinusPlayer.isPlaying) sinusPlayer.pause()
+                sinusPlayer.setVolume(0f, 0f)
+                sinusPlayer.setOnSeekCompleteListener { player ->
+                    player.setOnSeekCompleteListener(null)
+                    player.start()
+                    sinusFadeStartedAt = SystemClock.elapsedRealtime()
+                    mainHandler.post(sinusFade)
+                }
+                sinusPlayer.seekTo(0)
+                return
+            }
+            "SINUS_STOP" -> {
+                mainHandler.removeCallbacks(sinusFade)
+                sinusPlayer.setOnSeekCompleteListener(null)
+                sinusPlayer.setVolume(0f, 0f)
+                if (sinusPlayer.isPlaying) sinusPlayer.pause()
+                sinusPlayer.seekTo(0)
                 return
             }
             "MATRIX_START" -> {
@@ -227,10 +276,12 @@ class FireworksAudioPlayer(context: Context) {
     fun release() {
         openingPlayer.release()
         matrixPlayer.release()
+        sinusPlayer.release()
         lightChasePlayer.release()
         universalPlayer.release()
         sauronPlayer.release()
         mainHandler.removeCallbacks(rainFade)
+        mainHandler.removeCallbacks(sinusFade)
         rainPlayer.release()
         soundPool.release()
     }

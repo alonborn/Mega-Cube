@@ -23,6 +23,8 @@
 #include "LightChase.h"
 #include "Mario.h"
 #include "Metaballs.h"
+#include "MusicBalls.h"
+#include "MusicEqualizer.h"
 #include "Opening.h"
 #include "Opening2.h"
 #include "Plasma.h"
@@ -37,6 +39,8 @@
 #include "TheMatrix.h"
 #include "Twinkels.h"
 #include "WhiteTest.h"
+#include "WalkingMan.h"
+#include "Yoda.h"
 #include "Cube.h"
 /*------------------------------------------------------------------------------
  * ANIMATION STATIC DEFINITIONS
@@ -72,8 +76,12 @@ Life life;
 LightChase light_chase;
 DeLoreanFlight delorean_flight;
 Universal universal;
+Yoda yoda;
 Mario mario;
 Metaballs metaballs;
+MusicBalls music_balls;
+MusicEqualizer music_equalizer;
+WalkingMan walking_man;
 Opening opening;
 Opening2 opening2;
 Plasma plasma;
@@ -100,7 +108,8 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &metaballs, &electric_storm, &dna_tunnel,
                            &eye_of_sauron, &white_test, &red_test, &opening,
                            &opening2, &blackout, &helix2, &light_chase,
-                           &delorean_flight, &universal};
+                           &delorean_flight, &universal, &yoda,
+                           &music_balls, &music_equalizer, &walking_man};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
@@ -278,6 +287,10 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"DeLorean Flight", "A DeLorean rises into an accelerating starfield", 0,
        &delorean_flight},
       {"Universal", "Rotating Earth and orbital studio title", 0, &universal},
+      {"Yoda", "A rotating Yoda head rises into the cube", 0, &yoda},
+      {"Music Balls", "Live music drives antipodal light balls", 0, &music_balls},
+      {"Music Equalizer", "Live eight-band spectrum waterfall", 0, &music_equalizer},
+      {"Walking Man", "A sparse stick figure walking in place", 0, &walking_man},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

@@ -48,6 +48,10 @@
 #define ANIMATION_LIGHT_CHASE 34
 #define ANIMATION_DELOREAN_FLIGHT 35
 #define ANIMATION_UNIVERSAL 36
+#define ANIMATION_YODA 37
+#define ANIMATION_MUSIC_BALLS 38
+#define ANIMATION_MUSIC_EQUALIZER 39
+#define ANIMATION_WALKING_MAN 40
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE

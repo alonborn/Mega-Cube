@@ -10,7 +10,6 @@ class ElectricStorm : public Animation {
  private:
   static const uint8_t MAX_SEGMENTS = 120;
   static const uint8_t IMPACT_PARTICLES = 180;
-  static constexpr float DURATION = 30.0f;
   static constexpr float REVEAL_DURATION = 0.20f;
   static constexpr float HOLD_DURATION = 0.70f;
   static constexpr float FADE_DURATION = 0.25f;
@@ -30,13 +29,11 @@ class ElectricStorm : public Animation {
   uint8_t strikes_until_impact = 0;
   Vector3 source;
   Vector3 target;
-  float age = 0.0f;
   float strike_age = STRIKE_DURATION;
   float next_strike_delay = 0.0f;
   bool strike_active = false;
   bool impact_pending = false;
   bool impact_triggered = false;
-  bool rain_active = false;
   bool first_strike = true;
 
   void addSegment(const Vector3 &start, const Vector3 &end, float reveal,
@@ -90,13 +87,14 @@ class ElectricStorm : public Animation {
   }
 
   void generateStrike() {
+    const bool openingStrike = first_strike;
     segment_count = 0;
     source = Vector3(noise.nextRandom(-6.5f, 6.5f), 7.0f,
                      noise.nextRandom(-6.5f, 6.5f));
     target = Vector3(noise.nextRandom(-6.5f, 6.5f), -7.1f,
                      noise.nextRandom(-6.5f, 6.5f));
     generateBolt(source, target, 0.0f);
-    if (random(0, 100) < 35) {
+    if (!openingStrike && random(0, 100) < 35) {
       const Vector3 second_source(noise.nextRandom(-6.5f, 6.5f), 7.0f,
                                   noise.nextRandom(-6.5f, 6.5f));
       const Vector3 second_target(noise.nextRandom(-6.5f, 6.5f), -7.1f,
@@ -111,7 +109,7 @@ class ElectricStorm : public Animation {
     sendAnimationEvent(impact_pending ? "THUNDER_BOOM" : "THUNDER");
     strike_active = true;
     strike_age = -getAudioLeadSeconds();
-    next_strike_delay = first_strike ? 5.0f : noise.nextRandom(0.25f, 1.35f);
+    next_strike_delay = openingStrike ? 5.0f : noise.nextRandom(0.25f, 1.35f);
     first_strike = false;
   }
 
@@ -145,13 +143,11 @@ class ElectricStorm : public Animation {
  public:
   void init() override {
     state = state_t::RUNNING;
-    age = 0.0f;
     strike_age = 0.0f;
-    next_strike_delay = 15.0f;
+    next_strike_delay = 10.0f;
     strike_active = false;
     first_strike = true;
     strikes_until_impact = random(3, 7);
-    rain_active = true;
     sendAnimationEvent("STORM_START");
     for (uint8_t i = 0; i < IMPACT_PARTICLES; ++i)
       impact_particles[i].brightness = 0.0f;
@@ -159,7 +155,6 @@ class ElectricStorm : public Animation {
   }
 
   void draw(float dt) override {
-    age += dt;
     strike_age += dt;
     if (!strike_active && strike_age >= next_strike_delay) generateStrike();
 
@@ -194,11 +189,6 @@ class ElectricStorm : public Animation {
     }
 
     drawImpact(dt);
-    if (age >= DURATION) {
-      if (rain_active) sendAnimationEvent("STORM_STOP");
-      rain_active = false;
-      state = state_t::INACTIVE;
-    }
   }
 };
 #endif

@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -25,6 +26,7 @@ import android.os.ParcelUuid
 import android.util.Log
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+import java.util.ArrayDeque
 
 data class CubeDevice(val name: String, val address: String, val rssi: Int)
 
@@ -69,6 +71,31 @@ class CubeBleManager(
     private var gatt: BluetoothGatt? = null
     private var commandCharacteristic: BluetoothGattCharacteristic? = null
     private var state = ConnectionState.DISCONNECTED
+    private val commands = ArrayDeque<ByteArray>()
+    private var latestMusic: ByteArray? = null
+    private var writeInProgress = false
+    private var writingMusic = false
+    private var musicSelected = false
+    private var musicSequence = 0
+    private var writeStartRetries = 0
+    private var fastConnection = false
+    private val catalogPending = ArrayDeque<AnimationChoice>()
+    private var catalogAwaiting: Int? = null
+    private var catalogRequested = false
+    private val catalogTimeout = Runnable {
+        val syncing = catalogAwaiting != null
+        catalogRequested = false
+        catalogAwaiting = null
+        catalogPending.clear()
+        if (syncing) onStatus("Animation catalog sync timed out; reconnect to retry")
+    }
+    private val openingOnConnect = Runnable { selectAnimation(31) }
+    private val writeTimeout = Runnable {
+        if (writeInProgress) {
+            onStatus("BLE write timed out; reconnect the cube")
+            gatt?.disconnect()
+        }
+    }
 
     init {
         audioManager.registerAudioDeviceCallback(audioDeviceCallback, mainHandler)
@@ -76,14 +103,46 @@ class CubeBleManager(
 
     private fun handleNotification(value: ByteArray) {
         val message = value.toString(StandardCharsets.UTF_8)
+        if (message.startsWith("CATALOG 1 ") && catalogRequested) {
+            val defaultCount = message.substringAfterLast(' ').toIntOrNull()
+            if (defaultCount != null && defaultCount in 0..256) {
+                mainHandler.removeCallbacks(catalogTimeout)
+                catalogRequested = false
+                catalogPending.addAll(AnimationCatalog.additions(defaultCount))
+                syncNextAnimation()
+            }
+            return
+        }
+        if (message.startsWith("OK CATALOG ")) {
+            if (message.substringAfterLast(' ').toIntOrNull() == catalogAwaiting && catalogAwaiting != null) {
+                mainHandler.removeCallbacks(catalogTimeout)
+                catalogAwaiting = null
+                syncNextAnimation()
+            }
+            return
+        }
+        if (message.startsWith("ERROR CATALOG")) {
+            mainHandler.removeCallbacks(catalogTimeout)
+            catalogPending.clear()
+            catalogAwaiting = null
+            onStatus(message)
+            return
+        }
         if (message.startsWith("EVENT ")) {
             Log.d("MegaCubeBle", "notification: ")
             onEvent(message.removePrefix("EVENT "))
-        } else if (message.startsWith("OK ANIMATION ")) {
-            val animationId = message.substringAfterLast(" ").trim().toIntOrNull()
-            if (animationId == 34) onEvent("LIGHT_CHASE_START")
+        } else if (message.startsWith("OK ANIMATION ") || message.startsWith("STATUS ANIMATION ")) {
+            val animationId = message.split(" ").getOrNull(2)?.toIntOrNull()
+            musicSelected = animationId == 38 || animationId == 39
+            if (!musicSelected) latestMusic = null
+            if (musicSelected) onEvent("LIVE_START")
+            if (animationId == 34 && message.startsWith("OK ")) onEvent("LIGHT_CHASE_START")
             onStatus(message)
         } else {
+            if (message == "OK PLAYLIST" || message.startsWith("STATUS PLAYLIST ")) {
+                musicSelected = false
+                latestMusic = null
+            }
             onStatus(message)
         }
     }
@@ -91,6 +150,52 @@ class CubeBleManager(
     private fun setState(value: ConnectionState) {
         state = value
         onConnectionChanged(value)
+    }
+
+    private fun clearWrites() {
+        mainHandler.removeCallbacks(catalogTimeout)
+        catalogPending.clear()
+        catalogAwaiting = null
+        catalogRequested = false
+        mainHandler.removeCallbacks(writeTimeout)
+        mainHandler.removeCallbacks(openingOnConnect)
+        commands.clear()
+        latestMusic = null
+        writeInProgress = false
+        musicSelected = false
+        writeStartRetries = 0
+        fastConnection = false
+    }
+
+    private fun pumpWrites() {
+        if (writeInProgress || state != ConnectionState.CONNECTED) return
+        val characteristic = commandCharacteristic ?: return
+        val connection = gatt ?: return
+        writingMusic = commands.isEmpty()
+        val payload = if (!writingMusic) commands.first()
+            else latestMusic ?: return
+        val writeType = if (writingMusic) BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            else BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        val accepted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            connection.writeCharacteristic(characteristic, payload, writeType) == BluetoothStatusCodes.SUCCESS
+        } else {
+            characteristic.writeType = writeType
+            characteristic.value = payload
+            connection.writeCharacteristic(characteristic)
+        }
+        if (accepted) {
+            writeStartRetries = 0
+            if (writingMusic) latestMusic = null else commands.removeFirst()
+            writeInProgress = true
+            mainHandler.postDelayed(writeTimeout, 2000)
+        } else {
+            if (++writeStartRetries > 20) {
+                onStatus("BLE is stalled; reconnect the cube")
+                connection.disconnect()
+                return
+            }
+            mainHandler.postDelayed({ pumpWrites() }, 50)
+        }
     }
 
     private val scanCallback = object : ScanCallback() {
@@ -109,21 +214,32 @@ class CubeBleManager(
 
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            mainHandler.post {
+            if (this@CubeBleManager.gatt !== gatt) return@post
             if (status == BluetoothGatt.GATT_SUCCESS &&
                 newState == android.bluetooth.BluetoothProfile.STATE_CONNECTED
             ) {
                 setState(ConnectionState.CONNECTING)
                 gatt.discoverServices()
             } else {
+                clearWrites()
                 onEvent("STORM_STOP")
-            onEvent("UNIVERSAL_STOP")
+                onEvent("SINUS_STOP")
+                onEvent("UNIVERSAL_STOP")
                 commandCharacteristic = null
                 setState(ConnectionState.DISCONNECTED)
                 onStatus("Cube disconnected")
             }
+            }
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            if (this@CubeBleManager.gatt !== gatt) return
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                onStatus("Cube service discovery failed")
+                gatt.disconnect()
+                return
+            }
             val service: BluetoothGattService? = gatt.getService(SERVICE_UUID)
             commandCharacteristic = service?.getCharacteristic(COMMAND_UUID)
             val statusCharacteristic = service?.getCharacteristic(STATUS_UUID)
@@ -133,15 +249,53 @@ class CubeBleManager(
                 return
             }
 
-            gatt.setCharacteristicNotification(statusCharacteristic, true)
-            statusCharacteristic.getDescriptor(CCCD_UUID)?.let { descriptor ->
+            val descriptor = statusCharacteristic.getDescriptor(CCCD_UUID)
+            if (descriptor == null || !gatt.setCharacteristicNotification(statusCharacteristic, true)) {
+                onStatus("Cube notifications unavailable")
+                gatt.disconnect()
+                return
+            }
+            val subscribed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothStatusCodes.SUCCESS
+            } else {
                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 gatt.writeDescriptor(descriptor)
             }
-            setState(ConnectionState.CONNECTED)
-            onStatus("Connected to Mega Cube")
-            mainHandler.postDelayed({ configureAudioLatency() }, 600)
-            mainHandler.postDelayed({ selectAnimation(31) }, 1000)
+            if (!subscribed) {
+                onStatus("Cube notification setup failed")
+                gatt.disconnect()
+            }
+        }
+
+        override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
+            if (descriptor.uuid != CCCD_UUID) return
+            mainHandler.post {
+                if (this@CubeBleManager.gatt !== gatt) return@post
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    onStatus("Cube notifications could not be enabled")
+                    gatt.disconnect()
+                    return@post
+                }
+                setState(ConnectionState.CONNECTED)
+                onStatus("Connected to Mega Cube")
+                catalogRequested = true
+                send("CATALOG?")
+                mainHandler.postDelayed(catalogTimeout, 3000)
+                mainHandler.postDelayed({ configureAudioLatency() }, 600)
+                mainHandler.postDelayed(openingOnConnect, 1000)
+                pumpWrites()
+            }
+        }
+
+        override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            mainHandler.post {
+                if (this@CubeBleManager.gatt !== gatt) return@post
+                mainHandler.removeCallbacks(writeTimeout)
+                writeInProgress = false
+                if (status != BluetoothGatt.GATT_SUCCESS && !writingMusic)
+                    onStatus("BLE command failed: $status")
+                pumpWrites()
+            }
         }
 
         @Deprecated("Deprecated in API 33")
@@ -149,7 +303,8 @@ class CubeBleManager(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
         ) {
-            handleNotification(characteristic.value)
+            val value = characteristic.value
+            mainHandler.post { handleNotification(value) }
         }
 
         override fun onCharacteristicChanged(
@@ -157,7 +312,7 @@ class CubeBleManager(
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray,
         ) {
-            handleNotification(value)
+            mainHandler.post { handleNotification(value) }
         }
     }
 
@@ -185,6 +340,7 @@ class CubeBleManager(
         stopScan()
         setState(ConnectionState.CONNECTING)
         val device = adapter?.getRemoteDevice(address) ?: return
+        clearWrites()
         gatt?.close()
         gatt = device.connectGatt(appContext, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
     }
@@ -210,10 +366,12 @@ class CubeBleManager(
     }
 
     fun disconnect() {
+        clearWrites()
         onEvent("LIGHT_CHASE_STOP")
         onEvent("MATRIX_STOP")
         onEvent("SAURON_STOP")
         onEvent("UNIVERSAL_STOP")
+        onEvent("SINUS_STOP")
         gatt?.disconnect()
         gatt?.close()
         gatt = null
@@ -222,10 +380,14 @@ class CubeBleManager(
     }
 
     fun selectAnimation(id: Int) {
+        mainHandler.removeCallbacks(openingOnConnect)
+        musicSelected = id == 38 || id == 39
+        latestMusic = null
         if (id != 34) onEvent("LIGHT_CHASE_STOP")
         onEvent(if (id == 19) "MATRIX_START" else "MATRIX_STOP")
         onEvent(if (id == 27) "SAURON_START" else "SAURON_STOP")
         if (id != 36) onEvent("UNIVERSAL_STOP")
+        if (id != 12) onEvent("SINUS_STOP")
         if (id == 30 || id == 31) {
             onEvent("OPENING")
             mainHandler.postDelayed({ send("ANIMATION " + id) }, 650)
@@ -235,10 +397,57 @@ class CubeBleManager(
     }
 
     fun send(command: String): Boolean {
-        val characteristic = commandCharacteristic ?: return false
+        if (commandCharacteristic == null || state != ConnectionState.CONNECTED) return false
+        if (command == "PLAYLIST") {
+            musicSelected = false
+            latestMusic = null
+        }
         val payload = command.toByteArray(StandardCharsets.UTF_8)
-        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        characteristic.value = payload
-        return gatt?.writeCharacteristic(characteristic) == true
+        if (commands.size >= 32) {
+            onStatus("BLE command queue is full")
+            return false
+        }
+        commands.addLast(payload)
+        pumpWrites()
+        return true
+    }
+
+    private fun syncNextAnimation() {
+        val next = catalogPending.pollFirst() ?: return
+        val packets = AnimationCatalog.packets(next)
+        if (commands.size + packets.size > 32) {
+            catalogPending.clear()
+            onStatus("Animation catalog sync deferred; reconnect to retry")
+            return
+        }
+        catalogAwaiting = next.id
+        packets.forEach(commands::addLast)
+        mainHandler.postDelayed(catalogTimeout, 3000)
+        pumpWrites()
+    }
+
+    fun sendMusic(features: MusicFeatures) {
+        mainHandler.post {
+            if (state != ConnectionState.CONNECTED || !musicSelected) return@post
+            if (!fastConnection) {
+                gatt?.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+                fastConnection = true
+            }
+            latestMusic = features.packet(musicSequence++)
+            pumpWrites()
+        }
+    }
+
+    fun stopMusic() {
+        mainHandler.post {
+            latestMusic = null
+            if (fastConnection) gatt?.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED)
+            fastConnection = false
+        }
+    }
+
+    fun close() {
+        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+        disconnect()
     }
 }

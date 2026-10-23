@@ -31,6 +31,8 @@ android {
 }
 
 dependencies {
+    implementation("com.github.wendykierp:JTransforms:3.1")
+    testImplementation("junit:junit:4.13.2")
     implementation(platform("androidx.compose:compose-bom:2025.05.01"))
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.compose.material3:material3")

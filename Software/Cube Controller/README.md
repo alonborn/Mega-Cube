@@ -36,3 +36,41 @@ STATUS
 ```
 
 Build with `/home/alon/.platformio/penv/bin/pio run`.
+
+## Dynamic animation catalog
+
+The built-in IDs 0..39 remain in `include/AnimationCatalog.h`. Adding an animation
+now requires updating only the Teensy implementation and Android's
+`AnimationCatalog.choices`. Append new IDs (40..255); do not renumber existing IDs.
+After a one-time ESP32 firmware upgrade, the phone synchronizes names on every
+BLE connection. The ESP32 only forwards animation commands to the Teensy; no
+animation implementation is downloaded to the ESP32.
+
+Additional names are stored in the `animations` Preferences/NVS namespace and
+survive restarts and ordinary firmware uploads. Unchanged entries are not written
+again. A partial transfer never replaces a name. Built-in names cannot be
+overridden, and reconnecting with an older phone does not remove learned entries.
+Touch previous/next cycles through known IDs, skipping gaps, including learned
+entries. Playback names still appear only after Teensy confirmation.
+
+To promote animations to defaults, extend the contiguous default-name array and
+`DEFAULT_COUNT`, then flash the ESP32 when desired. Its advertised default count
+causes the phone to skip these entries automatically.
+
+Protocol (handled locally, never sent to the Teensy):
+
+- Phone sends `CATALOG?`; ESP32 responds `CATALOG 1 <default-count>`.
+- For each additional ID, phone sends binary fragments: `A C`, version 1, ID,
+  byte offset, total name length, then up to 14 ASCII bytes. Every fragment fits
+  the 20-byte default BLE payload. Names must contain 1..32 printable ASCII bytes.
+- ESP32 assembles fragments in order, persists a complete name, then notifies
+  `OK CATALOG <id>` (or `ERROR CATALOG` / `ERROR CATALOG_SAVE`). The phone waits
+  for this confirmation before transferring another entry. Failed transfers
+  are retried on reconnect; normal controls remain usable.
+
+Native parser/navigation test:
+
+```bash
+g++ -std=c++11 -Iinclude test/catalog_test.cpp -o /tmp/cube-catalog-test
+/tmp/cube-catalog-test
+```

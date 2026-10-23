@@ -16,10 +16,10 @@ resistive touch controller. It does not depend on the Teensy or LED project.
 | SCK | GPIO 18 | Shared SPI clock |
 | LED | GPIO 33 | Backlight |
 | SDO (MISO) | GPIO 19 | Shared SPI MISO |
-| T_CLK | GPIO 4 | Touch SPI clock |
-| T_CS | GPIO 21 | Touch select |
-| T_DIN | GPIO 16 | Touch SPI MOSI |
-| T_DO | GPIO 17 | Touch SPI MISO |
+| T_CLK | GPIO 18 | Shared SPI clock |
+| T_CS | GPIO 14 | Touch select |
+| T_DIN | GPIO 23 | Shared SPI MOSI |
+| T_DO | GPIO 19 | Shared SPI MISO |
 | T_IRQ | GPIO 34 | Touch interrupt |
 
 Leave the SD-card pins disconnected for this test. All grounds must be common.
@@ -62,7 +62,6 @@ Back to the future
 0:28 - 0:30 עליה מהירה מאוד במהירות של הכוכבים והדלוריאן נוסעת כאילו ימינה
 0:30-0:50 הדלוריאן טסה ימינה, כלומר הכוכבים זזים שמאלה
 0:50-1:13 - הדלוריאן עוברת בין מטאורים שמתחילים להגיע מצד ימין. הם נעים שמאלה והדלוריאן מתחמקת מהם. המטאורים יותר גדולים מכוכבים והצבע שלהם שונה כדי שיוכלו להבדיל ביניהם לכוכבים.
-
 
 
 

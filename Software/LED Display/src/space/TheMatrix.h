@@ -45,8 +45,8 @@ class TheMatrix : public Animation {
     if (age < INTRO_DURATION) return;
 
     const float rainAge = age - INTRO_DURATION;
-    uint8_t visibleStreams = static_cast<uint8_t>(4.0f + rainAge * 30.0f);
-    if (visibleStreams > STREAMS) visibleStreams = STREAMS;
+    const uint16_t visibleStreams = static_cast<uint16_t>(
+        min(static_cast<float>(STREAMS), 4.0f + rainAge * 30.0f));
     for (uint8_t i = 0; i < visibleStreams; i++) {
       Stream &stream = streams[i];
       stream.y -= stream.speed * dt;

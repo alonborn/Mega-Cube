@@ -3,7 +3,9 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
+#include <Preferences.h>
 
+#include "AnimationCatalog.h"
 #include "PinConfig.h"
 #include "Protocol.h"
 
@@ -11,6 +13,14 @@ namespace {
 TFT_eSPI display;
 XPT2046_Touchscreen touch(Pins::TOUCH_CS, Pins::TOUCH_IRQ);
 HardwareSerial teensy(2);
+struct ControllerCommand { char text[181]; uint8_t size; };
+AnimationCatalog animationCatalog;
+Preferences catalogStorage;
+bool catalogStorageReady = false;
+QueueHandle_t commandQueue = nullptr;
+portMUX_TYPE musicMux = portMUX_INITIALIZER_UNLOCKED;
+uint8_t latestMusic[12] = {};
+bool musicPending = false;
 
 NimBLECharacteristic* statusCharacteristic = nullptr;
 volatile bool phoneConnected = false;
@@ -20,7 +30,7 @@ bool playlistActive = false;
 bool playbackConfirmed = false;
 String teensyLine;
 constexpr bool ENABLE_DISPLAY = true;
-constexpr bool ENABLE_TOUCH = false;
+constexpr bool ENABLE_TOUCH = true;
 
 constexpr uint16_t COLOR_BACKGROUND = TFT_BLACK;
 constexpr uint16_t COLOR_PANEL = 0x18E3;
@@ -43,16 +53,8 @@ void selectAnimation(uint8_t id) {
 }
 
 const char* animationName(uint8_t id) {
-  static const char* const names[] = {
-      "LED TEST",       "ACCELEROMETER", "ARROWS",         "ATOMS",
-      "CUBE",           "FIREWORKS",     "HELIX 1",          "LIFE",
-      "MARIO",          "PLASMA",        "PONG",           "SCROLLER",
-      "SINUS",          "SPECTRUM",      "STARFIELD",      "FAIRY LIGHTS",
-      "MULTI LIGHTS",   "CHANNEL TEST",  "CHANNEL COLORS", "THE MATRIX",
-      "SPOTTED SPHERE", "SUPERNOVA",     "AURORA",         "BLACK HOLE",
-      "METABALLS",      "ELECTRIC STORM", "DNA TUNNEL",    "EYE OF SAURON",
-      "WHITE TEST",      "RED TEST",        "OPENING",        "OPENING 2",      "BLACKOUT",        "HELIX 2",        "LIGHT CHASE", "DELOREAN FLIGHT", "UNIVERSAL"};
-  return id < sizeof(names) / sizeof(names[0]) ? names[id] : "UNKNOWN";
+  const char* name = animationCatalog.name(id);
+  return name[0] ? name : "UNKNOWN";
 }
 
 void applyTeensyConfirmation(const String& status) {
@@ -88,6 +90,9 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 
   void onDisconnect(NimBLEServer*, NimBLEConnInfo&, int reason) override {
     phoneConnected = false;
+    portENTER_CRITICAL(&musicMux);
+    musicPending = false;
+    portEXIT_CRITICAL(&musicMux);
     Serial.printf("BLE disconnected: %d\n", reason);
     uiDirty = true;
   }
@@ -98,10 +103,32 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
                NimBLEConnInfo&) override {
     std::string value = characteristic->getValue();
     if (value.empty()) return;
+    if (value.size() == 16 && value[0] == 'M' && value[1] == 'U') {
+      uint8_t checksum = 0;
+      for (char byte : value) checksum ^= static_cast<uint8_t>(byte);
+      if (static_cast<uint8_t>(value[2]) != 1 || checksum != 0) return;
+      portENTER_CRITICAL(&musicMux);
+      memcpy(latestMusic, value.data() + 3, sizeof(latestMusic));
+      musicPending = true;
+      portEXIT_CRITICAL(&musicMux);
+      return;
+    }
+    if (value.size() > 180) return;
+    if (value.size() >= 2 && value[0] == 'A' && value[1] == 'C') {
+      ControllerCommand queued = {};
+      queued.size = value.size();
+      memcpy(queued.text, value.data(), value.size());
+      if (!commandQueue || xQueueSend(commandQueue, &queued, 0) != pdTRUE)
+        notifyStatus("ERROR CATALOG");
+      return;
+    }
     String command(value.c_str());
     command.trim();
     Serial.printf("BLE command: %s\n", command.c_str());
-    sendToTeensy(command);
+    ControllerCommand queued = {};
+    command.toCharArray(queued.text, sizeof(queued.text));
+    if (!commandQueue || xQueueSend(commandQueue, &queued, 0) != pdTRUE)
+      notifyStatus("ERROR COMMAND_QUEUE_FULL");
 
   }
 };
@@ -162,11 +189,13 @@ void drawUi() {
   display.setTextDatum(TC_DATUM);
   display.drawString("NOW PLAYING", 160, 174, 2);
   display.setTextColor(TFT_CYAN, COLOR_BACKGROUND);
-  display.drawString(playbackConfirmed
+  const char* playing = playbackConfirmed
                          ? (playlistActive ? "PLAYLIST"
                                            : animationName(animationId))
-                         : "WAITING FOR TEENSY",
-                     160, 202, 4);
+                         : "WAITING FOR TEENSY";
+  const int font = display.textWidth(playing, 4) <= 304 ? 4
+                   : display.textWidth(playing, 2) <= 304 ? 2 : 1;
+  display.drawString(playing, 160, 202, font);
 
   display.setTextDatum(BC_DATUM);
   display.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
@@ -179,16 +208,16 @@ void handleTouch() {
   lastTouch = millis();
 
   TS_Point point = touch.getPoint();
-  int x = map(point.x, 250, 3850, 0, 320);
+  int x = map(point.x, 250, 3850, 320, 0);
   int y = map(point.y, 250, 3850, 0, 240);
   x = constrain(x, 0, 319);
   y = constrain(y, 0, 239);
 
   if (y < 180 || y > 232) return;
   if (x < 108) {
-    selectAnimation(animationId == 0 ? 36 : animationId - 1);
+    selectAnimation(animationCatalog.adjacent(animationId, -1));
   } else if (x < 208) {
-    selectAnimation(animationId >= 36 ? 0 : animationId + 1);
+    selectAnimation(animationCatalog.adjacent(animationId, 1));
   } else {
     sendToTeensy("PLAYLIST");
     notifyStatus("PLAYLIST");
@@ -211,12 +240,77 @@ void forwardTeensyStatus() {
     }
   }
 }
+
+void forwardCommands() {
+  ControllerCommand command;
+  for (uint8_t i = 0; i < 2 && commandQueue; ++i) {
+    if (xQueueReceive(commandQueue, &command, 0) != pdTRUE) break;
+    if (command.size) {
+      uint8_t id = 0;
+      bool changed = false;
+      const auto result = animationCatalog.accept(
+          reinterpret_cast<const uint8_t*>(command.text), command.size, id, changed);
+      if (result == AnimationCatalog::INVALID) notifyStatus("ERROR CATALOG");
+      if (result == AnimationCatalog::COMPLETE) {
+        bool saved = true;
+        if (id >= AnimationCatalog::DEFAULT_COUNT) {
+          const String key = "a" + String(id);
+          saved = catalogStorageReady;
+          if (saved && catalogStorage.getString(key.c_str()) != animationCatalog.name(id))
+            saved = catalogStorage.putString(key.c_str(), animationCatalog.name(id)) > 0;
+        }
+        if (changed) uiDirty = true;
+        Serial.printf("Catalog ID=%u changed=%d saved=%d\n", id, changed, saved);
+        notifyStatus(saved ? "OK CATALOG " + String(id) : "ERROR CATALOG_SAVE");
+      }
+      continue;
+    }
+    if (strcmp(command.text, "CATALOG?") == 0) {
+      notifyStatus("CATALOG 1 " + String(AnimationCatalog::DEFAULT_COUNT));
+      continue;
+    }
+    sendToTeensy(String(command.text));
+  }
+}
+
+void forwardMusic() {
+  if (teensy.availableForWrite() < 31) return;
+  uint8_t data[12];
+  portENTER_CRITICAL(&musicMux);
+  const bool pending = musicPending;
+  if (pending) {
+    memcpy(data, latestMusic, sizeof(data));
+    musicPending = false;
+  }
+  portEXIT_CRITICAL(&musicMux);
+  if (!pending) return;
+
+  // Fixed-size line fits the existing UART parser without logging every frame.
+  const char hex[] = "0123456789ABCDEF";
+  char line[31];
+  memcpy(line, "MUSIC ", 6);
+  for (uint8_t i = 0; i < 12; ++i) {
+    line[6 + i * 2] = hex[data[i] >> 4];
+    line[7 + i * 2] = hex[data[i] & 15];
+  }
+  line[30] = '\n';
+  teensy.write(reinterpret_cast<const uint8_t*>(line), sizeof(line));
+}
 }  // namespace
 
 void setup() {
   Serial.begin(115200);
   delay(200);
   Serial.println("Mega Cube controller starting");
+  catalogStorageReady = catalogStorage.begin("animations", false);
+  if (catalogStorageReady) {
+    for (uint16_t id = AnimationCatalog::DEFAULT_COUNT; id < 256; ++id) {
+      const String key = "a" + String(id);
+      if (catalogStorage.isKey(key.c_str()))
+        animationCatalog.restore(id, catalogStorage.getString(key.c_str()).c_str());
+    }
+  }
+  commandQueue = xQueueCreate(12, sizeof(ControllerCommand));
   teensy.begin(115200, SERIAL_8N1, Pins::TEENSY_RX, Pins::TEENSY_TX);
 
   if (ENABLE_DISPLAY) {
@@ -226,6 +320,7 @@ void setup() {
     digitalWrite(Pins::SD_CS, HIGH);
 
     SPI.begin(Pins::SPI_SCK, Pins::SPI_MISO, Pins::SPI_MOSI);
+    if (ENABLE_TOUCH) touch.begin(SPI);
     display.init();
     display.setRotation(1);
     drawUi();
@@ -236,6 +331,8 @@ void setup() {
 }
 
 void loop() {
+  forwardCommands();
+  forwardMusic();
   if (ENABLE_TOUCH) handleTouch();
   forwardTeensyStatus();
   if (ENABLE_DISPLAY && uiDirty) drawUi();

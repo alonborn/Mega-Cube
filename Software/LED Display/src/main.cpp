@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 #include "core/Config.h"
+#include "core/LiveMusic.h"
 #include "power/Timer.h"
 #include "space/Animation.h"
 
@@ -28,6 +29,25 @@ float getAudioLeadSeconds() {
 static void handleControllerCommand(String command) {
   command.trim();
   if (command.length() == 0) return;
+
+  // Replies received on the command input must not create an error echo loop.
+  if (command.startsWith("ERROR ") || command.startsWith("OK ") ||
+      command.startsWith("EVENT ") || command.startsWith("STATUS ")) {
+    static uint32_t last_warning = 0;
+    if (millis() - last_warning >= 1000) {
+      last_warning = millis();
+      Serial.println("UART RX received a reply; check RX/TX wiring");
+    }
+    return;
+  }
+
+  if (command.startsWith("MUSIC ")) {
+    if (!config.animation.playlist &&
+        (config.animation.animation == ANIMATION_MUSIC_BALLS ||
+         config.animation.animation == ANIMATION_MUSIC_EQUALIZER))
+      liveMusic().accept(command.c_str() + 6, millis());
+    return;
+  }
 
   if (command.startsWith("ANIMATION ")) {
     const int id = command.substring(10).toInt();
@@ -77,19 +97,28 @@ static void handleControllerCommand(String command) {
     return;
   }
 
-  controllerReply("ERROR UNKNOWN_COMMAND");
+  static uint32_t last_error = 0;
+  if (millis() - last_error >= 1000) {
+    last_error = millis();
+    Serial.printf("UART invalid command: %.40s\n", command.c_str());
+    controllerReply("ERROR UNKNOWN_COMMAND");
+  }
 }
 
 static void pollController() {
   // Bound command processing so a noisy UART can never starve animation frames.
   uint8_t byte_budget = 64;
+  static bool discard_line = false;
   while (byte_budget-- > 0 && Serial1.available()) {
     const char value = Serial1.read();
     if (value == '\n') {
-      handleControllerCommand(controller_line);
+      if (!discard_line) handleControllerCommand(controller_line);
       controller_line = "";
-    } else if (value != '\r' && controller_line.length() < 180) {
-      controller_line += value;
+      discard_line = false;
+    } else if (value != '\r' && !discard_line) {
+      if (value < 32 || value > 126 || controller_line.length() >= 180)
+        discard_line = true;
+      else controller_line += value;
     }
   }
 }
@@ -125,5 +154,12 @@ void loop() {
     Serial.printf("Playlist FPS=%1.2f DMA_ERR=%lx SHIFTERR=%lx\n",
                   Animation::fps(), (unsigned long)DMA_ERR,
                   (unsigned long)(IMXRT_FLEXIO2_S.SHIFTERR & 0x0F));
+    if (!config.animation.playlist &&
+        (config.animation.animation == ANIMATION_MUSIC_BALLS ||
+         config.animation.animation == ANIMATION_MUSIC_EQUALIZER))
+      Serial.printf("Music frames=%lu onsets=%lu locked=%u BPM=%.1f\n",
+                    static_cast<unsigned long>(liveMusic().receivedFrames),
+                    static_cast<unsigned long>(liveMusic().receivedOnsets),
+                    liveMusic().rhythmStable ? 1 : 0, liveMusic().tempoBpm());
   }
 }
