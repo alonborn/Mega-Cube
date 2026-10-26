@@ -48,6 +48,10 @@ class FireworksAudioPlayer(context: Context) {
         isLooping = false
         setVolume(1.0f, 1.0f)
     }
+    private val ymcaPlayer = MediaPlayer.create(context, R.raw.ymca_full).apply {
+        isLooping = false
+        setVolume(1.0f, 1.0f)
+    }
     private val sauronPlayer = MediaPlayer.create(context, R.raw.eye_of_sauron).apply {
         isLooping = true
         setVolume(1.0f, 1.0f)
@@ -140,7 +144,7 @@ class FireworksAudioPlayer(context: Context) {
                 pendingEvents.clear()
                 soundPool.autoPause()
                 listOf(openingPlayer, matrixPlayer, sinusPlayer, universalPlayer,
-                    lightChasePlayer, sauronPlayer, rainPlayer).forEach { player ->
+                    lightChasePlayer, sauronPlayer, rainPlayer, ymcaPlayer).forEach { player ->
                     player.setOnSeekCompleteListener(null)
                     if (player.isPlaying) player.pause()
                 }
@@ -154,6 +158,22 @@ class FireworksAudioPlayer(context: Context) {
                     player.start()
                 }
                 sauronPlayer.seekTo(0)
+                return
+            }
+            "YMCA_START" -> {
+                Log.d(TAG, "playing YMCA Full soundtrack")
+                if (ymcaPlayer.isPlaying) ymcaPlayer.pause()
+                ymcaPlayer.setOnSeekCompleteListener { player ->
+                    player.setOnSeekCompleteListener(null)
+                    player.start()
+                }
+                ymcaPlayer.seekTo(0)
+                return
+            }
+            "YMCA_STOP" -> {
+                ymcaPlayer.setOnSeekCompleteListener(null)
+                if (ymcaPlayer.isPlaying) ymcaPlayer.pause()
+                ymcaPlayer.seekTo(0)
                 return
             }
             "SAURON_STOP" -> {
@@ -278,6 +298,7 @@ class FireworksAudioPlayer(context: Context) {
         matrixPlayer.release()
         sinusPlayer.release()
         lightChasePlayer.release()
+        ymcaPlayer.release()
         universalPlayer.release()
         sauronPlayer.release()
         mainHandler.removeCallbacks(rainFade)

@@ -8,11 +8,43 @@ class AnimationCatalogTest {
         val entries = AnimationCatalog.choices
         assertEquals(entries.size, entries.map { it.id }.toSet().size)
         entries.forEach { AnimationCatalog.packets(it) }
-        assertEquals(listOf(AnimationChoice(40, "Walking Man"), AnimationChoice(41, "Jumping Man"), AnimationChoice(42, "Running Man")), AnimationCatalog.additions(40))
-        assertEquals(listOf(AnimationChoice(41, "Jumping Man"), AnimationChoice(42, "Running Man")), AnimationCatalog.additions(41))
-        assertEquals(listOf(AnimationChoice(42, "Running Man")), AnimationCatalog.additions(42))
-        assertTrue(AnimationCatalog.additions(43).isEmpty())
-        assertEquals(setOf(38, 39, 40, 41, 42), AnimationCatalog.additions(38).map { it.id }.toSet())
+        assertEquals((40..51).toSet(), AnimationCatalog.additions(40).map { it.id }.toSet())
+        assertEquals((38..51).toSet(), AnimationCatalog.additions(38).map { it.id }.toSet())
+    }
+
+    @Test fun removesRetiredAnimationsFromLearnedCatalogOnly() {
+        val transfers = AnimationCatalog.syncEntries(40)
+        val removals = transfers.filter { it.name.isEmpty() }
+        assertTrue(removals.isEmpty())
+        assertEquals(AnimationCatalog.additions(40), transfers.filter { it.name.isNotEmpty() })
+        assertEquals(listOf(AnimationChoice(50, "YMCA Full +S"),
+            AnimationChoice(45, "YMCA Perimeter"),
+            AnimationChoice(46, "Wall Color Hold"),
+            AnimationChoice(47, "Edge Color Sequence"),
+            AnimationChoice(48, "Stage Build"),
+            AnimationChoice(49, "Edge Color Sequence 2"),
+            AnimationChoice(51, "YMCA Hip Sway")), AnimationCatalog.syncEntries(45))
+        assertEquals((43..51).toSet(), AnimationCatalog.syncEntries(43).map { it.id }.toSet())
+        assertEquals(listOf(AnimationChoice(50, "YMCA Full +S"),
+            AnimationChoice(AnimationCatalog.WALL_DOUBLE_FLASH, "Wall Color Hold"),
+            AnimationChoice(AnimationCatalog.EDGE_COLOR_SEQUENCE, "Edge Color Sequence"),
+            AnimationChoice(48, "Stage Build"),
+            AnimationChoice(49, "Edge Color Sequence 2"),
+            AnimationChoice(51, "YMCA Hip Sway")),
+            AnimationCatalog.syncEntries(46))
+        assertEquals(listOf(AnimationChoice(50, "YMCA Full +S"), AnimationChoice(48, "Stage Build"),
+            AnimationChoice(49, "Edge Color Sequence 2"),
+            AnimationChoice(51, "YMCA Hip Sway")), AnimationCatalog.syncEntries(48))
+        assertEquals(listOf(AnimationChoice(50, "YMCA Full +S"),
+            AnimationChoice(AnimationCatalog.EDGE_COLOR_SEQUENCE2, "Edge Color Sequence 2"),
+            AnimationChoice(51, "YMCA Hip Sway")),
+            AnimationCatalog.syncEntries(49))
+        assertEquals(listOf(AnimationChoice(50, "YMCA Full +S"),
+            AnimationChoice(51, "YMCA Hip Sway")), AnimationCatalog.syncEntries(50))
+        assertEquals(listOf(AnimationChoice(51, "YMCA Hip Sway")), AnimationCatalog.syncEntries(51))
+        assertTrue(AnimationCatalog.syncEntries(52).isEmpty())
+        assertArrayEquals(byteArrayOf(65, 67, 1, 40, 0, 0), AnimationCatalog.deletePacket(40))
+        assertThrows(IllegalArgumentException::class.java) { AnimationCatalog.deletePacket(256) }
     }
 
     @Test fun newAnimationUsesDefaultMtuAndPreservesIdAndFullName() {

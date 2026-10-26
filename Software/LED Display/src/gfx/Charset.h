@@ -1,3 +1,4 @@
+#pragma once
 #include <stdint.h>
 
 #define CHARSET_FRAME_COUNT 59

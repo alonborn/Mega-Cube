@@ -3,6 +3,9 @@ package com.megacube.controller
 data class AnimationChoice(val id: Int, val name: String)
 
 object AnimationCatalog {
+    const val WALL_DOUBLE_FLASH = 46
+    const val EDGE_COLOR_SEQUENCE = 47
+    const val EDGE_COLOR_SEQUENCE2 = 49
     val choices = listOf(
         AnimationChoice(32, "Blackout"),
         AnimationChoice(5, "Fireworks +S"),
@@ -14,6 +17,7 @@ object AnimationCatalog {
         AnimationChoice(34, "Light Chase +S"),
         AnimationChoice(36, "Universal +S"),
         AnimationChoice(12, "Sinus +S"),
+        AnimationChoice(50, "YMCA Full +S"),
         AnimationChoice(38, "Music Balls (LIVE)"),
         AnimationChoice(39, "Music Equalizer (LIVE)"),
         AnimationChoice(3, "Atoms"),
@@ -30,14 +34,33 @@ object AnimationCatalog {
         AnimationChoice(33, "Helix 2"),
         AnimationChoice(35, "DeLorean Flight"),
         AnimationChoice(37, "Yoda"),
-        AnimationChoice(40, "Walking Man"),
-        AnimationChoice(41, "Jumping Man"),
-        AnimationChoice(42, "Running Man"),
+        AnimationChoice(40, "YMCA Letters"),
+        AnimationChoice(41, "YMCA Side Steps"),
+        AnimationChoice(42, "YMCA March"),
+        AnimationChoice(43, "YMCA Disco"),
+        AnimationChoice(44, "YMCA Clap"),
+        AnimationChoice(45, "YMCA Perimeter"),
+        AnimationChoice(WALL_DOUBLE_FLASH, "Wall Color Hold"),
+        AnimationChoice(EDGE_COLOR_SEQUENCE, "Edge Color Sequence"),
+        AnimationChoice(48, "Stage Build"),
+        AnimationChoice(EDGE_COLOR_SEQUENCE2, "Edge Color Sequence 2"),
+        AnimationChoice(51, "YMCA Hip Sway"),
     )
+
+    private val retiredIds = (40..45).toSet()
 
     fun additions(defaultCount: Int): List<AnimationChoice> {
         require(defaultCount in 0..256)
         return choices.filter { it.id >= defaultCount }
+    }
+
+    fun syncEntries(defaultCount: Int): List<AnimationChoice> = additions(defaultCount) +
+        retiredIds.filter { id -> id >= defaultCount && choices.none { it.id == id } }
+            .map { AnimationChoice(it, "") }
+
+    fun deletePacket(id: Int): ByteArray {
+        require(id in 0..255)
+        return byteArrayOf('A'.code.toByte(), 'C'.code.toByte(), 1, id.toByte(), 0, 0)
     }
 
     fun packets(choice: AnimationChoice): List<ByteArray> {

@@ -108,7 +108,7 @@ class CubeBleManager(
             if (defaultCount != null && defaultCount in 0..256) {
                 mainHandler.removeCallbacks(catalogTimeout)
                 catalogRequested = false
-                catalogPending.addAll(AnimationCatalog.additions(defaultCount))
+                catalogPending.addAll(AnimationCatalog.syncEntries(defaultCount))
                 syncNextAnimation()
             }
             return
@@ -226,6 +226,7 @@ class CubeBleManager(
                 onEvent("STORM_STOP")
                 onEvent("SINUS_STOP")
                 onEvent("UNIVERSAL_STOP")
+                onEvent("YMCA_STOP")
                 commandCharacteristic = null
                 setState(ConnectionState.DISCONNECTED)
                 onStatus("Cube disconnected")
@@ -352,11 +353,10 @@ class CubeBleManager(
         val bleAudio = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             outputTypes.any { it == AudioDeviceInfo.TYPE_BLE_HEADSET ||
                 it == AudioDeviceInfo.TYPE_BLE_SPEAKER }
-        return when {
-            outputTypes.contains(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) -> 250
-            bleAudio -> 180
-            else -> 0
-        }
+        return AudioLatency.compensationMs(
+            classicBluetooth = outputTypes.contains(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP),
+            bleAudio = bleAudio,
+        )
     }
 
     private fun configureAudioLatency() {
@@ -372,6 +372,7 @@ class CubeBleManager(
         onEvent("SAURON_STOP")
         onEvent("UNIVERSAL_STOP")
         onEvent("SINUS_STOP")
+        onEvent("YMCA_STOP")
         gatt?.disconnect()
         gatt?.close()
         gatt = null
@@ -380,6 +381,12 @@ class CubeBleManager(
     }
 
     fun selectAnimation(id: Int) {
+        // This is a temporary overlay: keep the current soundtrack and live input.
+        if (id == 40 || id == AnimationCatalog.WALL_DOUBLE_FLASH ||
+            id == AnimationCatalog.EDGE_COLOR_SEQUENCE || id == AnimationCatalog.EDGE_COLOR_SEQUENCE2) {
+            send("ANIMATION " + id)
+            return
+        }
         mainHandler.removeCallbacks(openingOnConnect)
         musicSelected = id == 38 || id == 39
         latestMusic = null
@@ -388,6 +395,7 @@ class CubeBleManager(
         onEvent(if (id == 27) "SAURON_START" else "SAURON_STOP")
         if (id != 36) onEvent("UNIVERSAL_STOP")
         if (id != 12) onEvent("SINUS_STOP")
+        if (id != 50) onEvent("YMCA_STOP")
         if (id == 30 || id == 31) {
             onEvent("OPENING")
             mainHandler.postDelayed({ send("ANIMATION " + id) }, 650)
@@ -399,6 +407,7 @@ class CubeBleManager(
     fun send(command: String): Boolean {
         if (commandCharacteristic == null || state != ConnectionState.CONNECTED) return false
         if (command == "PLAYLIST") {
+            onEvent("YMCA_STOP")
             musicSelected = false
             latestMusic = null
         }
@@ -414,7 +423,8 @@ class CubeBleManager(
 
     private fun syncNextAnimation() {
         val next = catalogPending.pollFirst() ?: return
-        val packets = AnimationCatalog.packets(next)
+        val packets = if (next.name.isEmpty()) listOf(AnimationCatalog.deletePacket(next.id))
+            else AnimationCatalog.packets(next)
         if (commands.size + packets.size > 32) {
             catalogPending.clear()
             onStatus("Animation catalog sync deferred; reconnect to retry")

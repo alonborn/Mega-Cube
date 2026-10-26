@@ -38,6 +38,17 @@ int main() {
   assert(catalog.restore(255, "LAST ANIMATION"));
   assert(catalog.adjacent(0, -1) == 255);
   assert(catalog.adjacent(255, 1) == 0);
+  uint8_t removedId = 0;
+  uint8_t deletion[] = {'A', 'C', 1, 40, 0, 0};
+  assert(catalog.accept(deletion, sizeof(deletion), removedId, changed) == AnimationCatalog::COMPLETE && changed);
+  assert(removedId == 40 && catalog.name(40)[0] == '\0');
+  assert(catalog.adjacent(39, 1) == 255);
+  assert(catalog.accept(deletion, sizeof(deletion), removedId, changed) == AnimationCatalog::COMPLETE && !changed);
+  deletion[3] = 39;
+  assert(catalog.accept(deletion, sizeof(deletion), removedId, changed) == AnimationCatalog::COMPLETE && !changed);
+  assert(strcmp(catalog.name(39), "MUSIC EQ") == 0);
+  deletion[4] = 1;
+  assert(catalog.accept(deletion, sizeof(deletion), removedId, changed) == AnimationCatalog::INVALID);
   uint8_t id = 0;
   uint8_t invalid[20] = {'A', 'C', 2, 41, 0, 1, 'X'};
   assert(catalog.accept(invalid, 7, id, changed) == AnimationCatalog::INVALID);

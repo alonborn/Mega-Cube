@@ -29,6 +29,12 @@ animation, unless intentionally promoting it into its built-in defaults.
 The initial catalog-capable ESP32 firmware must be flashed once. Older firmware
 that does not answer the query remains usable for ordinary animation commands.
 
+Retired learned IDs are listed in `AnimationCatalog.retiredIds`. The app sends
+explicit deletion records on reconnect (currently 40..45), removing these names
+from the ESP32's RAM and persistent catalog. An omitted entry is not implicitly
+deleted, and an ID reused by a current choice is never sent as a deletion.
+Catalog deletion requires the deletion-capable ESP32 firmware once.
+
 ## Live music
 
 Choose `Music Balls (LIVE)` (38) or `Music Equalizer (LIVE)` (39), allow microphone

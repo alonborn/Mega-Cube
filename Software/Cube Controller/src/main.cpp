@@ -256,8 +256,11 @@ void forwardCommands() {
         if (id >= AnimationCatalog::DEFAULT_COUNT) {
           const String key = "a" + String(id);
           saved = catalogStorageReady;
-          if (saved && catalogStorage.getString(key.c_str()) != animationCatalog.name(id))
+          if (saved && !animationCatalog.name(id)[0]) {
+            if (catalogStorage.isKey(key.c_str())) saved = catalogStorage.remove(key.c_str());
+          } else if (saved && catalogStorage.getString(key.c_str()) != animationCatalog.name(id)) {
             saved = catalogStorage.putString(key.c_str(), animationCatalog.name(id)) > 0;
+          }
         }
         if (changed) uiDirty = true;
         Serial.printf("Catalog ID=%u changed=%d saved=%d\n", id, changed, saved);

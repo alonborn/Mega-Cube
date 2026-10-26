@@ -41,8 +41,17 @@ class AnimationCatalog {
   // AC, version, ID, offset, total length, up to 14 ASCII bytes (default BLE MTU).
   Result accept(const uint8_t* packet, size_t size, uint8_t& id, bool& changed) {
     changed = false;
-    if (size < 7 || size > 20 || packet[0] != 'A' || packet[1] != 'C' || packet[2] != 1)
+    if (size < 6 || size > 20 || packet[0] != 'A' || packet[1] != 'C' || packet[2] != 1)
       return INVALID;
+    if (size == 6 && packet[4] == 0 && packet[5] == 0) {
+      id = packet[3];
+      if (id >= DEFAULT_COUNT && name(id)[0]) {
+        extra[id - DEFAULT_COUNT][0] = '\0';
+        changed = true;
+      }
+      received = stagingLength = 0;
+      return COMPLETE;
+    }
     const uint8_t offset = packet[4];
     const uint8_t total = packet[5];
     const size_t count = size - 6;

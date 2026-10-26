@@ -50,6 +50,8 @@ Additional names are stored in the `animations` Preferences/NVS namespace and
 survive restarts and ordinary firmware uploads. Unchanged entries are not written
 again. A partial transfer never replaces a name. Built-in names cannot be
 overridden, and reconnecting with an older phone does not remove learned entries.
+Explicit deletion records from an updated phone remove a retired learned entry
+from RAM and NVS; omitted entries alone are never treated as deletions.
 Touch previous/next cycles through known IDs, skipping gaps, including learned
 entries. Playback names still appear only after Teensy confirmation.
 
@@ -67,6 +69,8 @@ Protocol (handled locally, never sent to the Teensy):
   `OK CATALOG <id>` (or `ERROR CATALOG` / `ERROR CATALOG_SAVE`). The phone waits
   for this confirmation before transferring another entry. Failed transfers
   are retried on reconnect; normal controls remain usable.
+- A six-byte `A C 1 <id> 0 0` packet deletes a learned entry, using the same
+  confirmation. Default entries are protected. Repeated deletion is harmless.
 
 Native parser/navigation test:
 

@@ -51,9 +51,18 @@
 #define ANIMATION_YODA 37
 #define ANIMATION_MUSIC_BALLS 38
 #define ANIMATION_MUSIC_EQUALIZER 39
-#define ANIMATION_WALKING_MAN 40
-#define ANIMATION_JUMPING_MAN 41
-#define ANIMATION_RUNNING_MAN 42
+#define ANIMATION_YMCA_LETTERS 40
+#define ANIMATION_YMCA_SIDE_STEPS 41
+#define ANIMATION_YMCA_MARCH 42
+#define ANIMATION_YMCA_DISCO 43
+#define ANIMATION_YMCA_CLAP 44
+#define ANIMATION_YMCA_PERIMETER 45
+#define ANIMATION_WALL_FLASH 46
+#define ANIMATION_EDGE_COLOR_SEQUENCE 47
+#define ANIMATION_STAGE_BUILD 48
+#define ANIMATION_EDGE_COLOR_SEQUENCE2 49
+#define ANIMATION_YMCA_FULL 50
+#define ANIMATION_YMCA_HIP_SWAY 51
 
 /*------------------------------------------------------------------------------
  * ANIMATION INTERFACE
@@ -109,6 +118,9 @@ class Animation {
   static void loop();
   // Select next animation from sequence or a specific one
   static void next(boolean changed = false, uint16_t index = 0);
+  static void flashWalls();
+  static void edgeColorSequence(bool second = false);
+  static void playYMCALetters();
   // Get current fps
   static float fps();
   // Draws antimation frame respecting elapsed time

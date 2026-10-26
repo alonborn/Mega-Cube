@@ -39,10 +39,12 @@
 #include "TheMatrix.h"
 #include "Twinkels.h"
 #include "WhiteTest.h"
-#include "WalkingMan.h"
-#include "JumpingMan.h"
-#include "RunningMan.h"
 #include "Yoda.h"
+#include "YMCA.h"
+#include "WallFlash.h"
+#include "EdgeColorSequence.h"
+#include "StageBuild.h"
+#include "YMCAFull.h"
 #include "Cube.h"
 /*------------------------------------------------------------------------------
  * ANIMATION STATIC DEFINITIONS
@@ -55,6 +57,7 @@ static uint8_t playlist_index = 0;
 static float playlist_elapsed = 0.0f;
 static bool playlist_started = false;
 static bool playlist_was_enabled = false;
+static bool wall_flash_previous_frame = false;
 /*------------------------------------------------------------------------------
  * ANIMATION GLOBAL DEFINITIONS
  *----------------------------------------------------------------------------*/
@@ -83,9 +86,20 @@ Mario mario;
 Metaballs metaballs;
 MusicBalls music_balls;
 MusicEqualizer music_equalizer;
-WalkingMan walking_man;
-JumpingMan jumping_man;
-RunningMan running_man;
+YMCA ymca_letters(YMCAPose::Mode::LETTERS);
+static YMCA temporary_ymca_letters(YMCAPose::Mode::LETTERS);
+static YMCAPose::LetterCycles letter_cycles;
+YMCA ymca_side_steps(YMCAPose::Mode::SIDE_STEPS);
+YMCA ymca_march(YMCAPose::Mode::MARCH);
+YMCA ymca_disco(YMCAPose::Mode::DISCO);
+YMCA ymca_clap(YMCAPose::Mode::CLAP);
+YMCA ymca_perimeter(YMCAPose::Mode::PERIMETER);
+YMCA ymca_hip_sway(YMCAPose::Mode::HIP_SWAY);
+WallFlash wall_flash;
+EdgeColorSequence edge_color_sequence;
+EdgeColorSequence edge_color_sequence2(true);
+StageBuild stage_build;
+YMCAFull ymca_full;
 Opening opening;
 Opening2 opening2;
 Plasma plasma;
@@ -113,13 +127,16 @@ Animation *Animations[] = {&ledtest,    &atoms,    &sinus,        &starfield,
                            &eye_of_sauron, &white_test, &red_test, &opening,
                            &opening2, &blackout, &helix2, &light_chase,
                            &delorean_flight, &universal, &yoda,
-                           &music_balls, &music_equalizer, &walking_man, &jumping_man,
-                           &running_man};
+                           &music_balls, &music_equalizer, &ymca_letters,
+                           &ymca_side_steps, &ymca_march, &ymca_disco, &ymca_clap,
+                           &ymca_perimeter, &ymca_hip_sway, &stage_build, &ymca_full, &wall_flash,
+                           &edge_color_sequence, &edge_color_sequence2};
 
 const uint8_t ANIMATIONS = sizeof(Animations) / sizeof(Animation *);
 /*----------------------------------------------------------------------------*/
 // Start display asap to minimize PL9823 blue startup
 void Animation::begin() {
+  letter_cycles.reset();
   playlist_index = 0;
   playlist_elapsed = 0.0f;
   playlist_started = false;
@@ -150,6 +167,7 @@ void Animation::loop() {
     const float dt = animation_timer.dt();
 
     if (settings.changed) {
+      letter_cycles.reset();
       for (uint8_t i = 0; i < ANIMATIONS; ++i) {
         Animations[i]->state = state_t::INACTIVE;
       }
@@ -180,6 +198,10 @@ void Animation::loop() {
     }
     // Clear the display before drawing any animations
     Display::clear();
+    const bool flashing = wall_flash.state != state_t::INACTIVE ||
+                          edge_color_sequence.state != state_t::INACTIVE ||
+                          edge_color_sequence2.state != state_t::INACTIVE ||
+                          letter_cycles.active();
     // Draw all active animations from the animation pool
     uint8_t active_animation_count = 0;
     for (uint8_t i = 0; i < ANIMATIONS; i++) {
@@ -191,6 +213,12 @@ void Animation::loop() {
       if (animation.state != state_t::INACTIVE) {
         active_animation_count++;
       }
+    }
+    // Keep the underlying animation running, but replace its visible frame.
+    letter_cycles.advance(dt);
+    if (letter_cycles.active()) {
+      Display::clear();
+      temporary_ymca_letters.draw(dt);
     }
     // Clear the settings changed flag. Animations are ended allready
     settings.changed = false;
@@ -204,8 +232,39 @@ void Animation::loop() {
       }
     }
     // Commit current animation frame to the display
+    const uint8_t blur = getMotionBlur();
+    // Also clear flash persistence on the first frame after the overlay ends.
+    if (flashing || wall_flash_previous_frame) setMotionBlur(0);
     Display::update();
+    if (flashing || wall_flash_previous_frame) setMotionBlur(blur);
+    wall_flash_previous_frame = flashing;
   }
+}
+
+void Animation::flashWalls() {
+  letter_cycles.reset();
+  edge_color_sequence.state = state_t::INACTIVE;
+  edge_color_sequence2.state = state_t::INACTIVE;
+  wall_flash.init();
+}
+
+void Animation::edgeColorSequence(bool second) {
+  letter_cycles.reset();
+  wall_flash.state = state_t::INACTIVE;
+  edge_color_sequence.state = state_t::INACTIVE;
+  edge_color_sequence2.state = state_t::INACTIVE;
+  if (second) edge_color_sequence2.init();
+  else edge_color_sequence.init();
+}
+
+void Animation::playYMCALetters() {
+  wall_flash.state = state_t::INACTIVE;
+  edge_color_sequence.state = state_t::INACTIVE;
+  edge_color_sequence2.state = state_t::INACTIVE;
+  const uint8_t blur = getMotionBlur();
+  temporary_ymca_letters.init();
+  setMotionBlur(blur);
+  letter_cycles.trigger();
 }
 
 // Override end method if more is needed than changing state and ending timer.
@@ -295,9 +354,18 @@ jump_item_t Animation::get_item(uint16_t index) {
       {"Yoda", "A rotating Yoda head rises into the cube", 0, &yoda},
       {"Music Balls", "Live music drives antipodal light balls", 0, &music_balls},
       {"Music Equalizer", "Live eight-band spectrum waterfall", 0, &music_equalizer},
-      {"Walking Man", "A sparse stick figure walking in place", 0, &walking_man},
-      {"Jumping Man", "A stick figure crouches, jumps and lands", 0, &jumping_man},
-      {"Running Man", "A leaning stick figure runs with high knees", 0, &running_man},
+      {"YMCA Letters", "Dancer forms Y, M, C and A with the arms", 0, &ymca_letters},
+      {"YMCA Side Steps", "Side-to-side dance steps with arm swings", 0, &ymca_side_steps},
+      {"YMCA March", "Marching steps travelling through the cube", 0, &ymca_march},
+      {"YMCA Disco", "Alternating diagonal disco points and hip sway", 0, &ymca_disco},
+      {"YMCA Clap", "Overhead claps with a gentle bounce", 0, &ymca_clap},
+      {"YMCA Perimeter", "Dancer walks around the cube's outer edges", 0, &ymca_perimeter},
+      {"Wall Color Hold", "Hold edge/floor color for 0.2s, then resume", 0, &wall_flash},
+      {"Edge Color Sequence", "Timed edge and floor colors, then resume", 0, &edge_color_sequence},
+      {"Stage Build", "Light builds the stage, then the dancer rises", 0, &stage_build},
+      {"Edge Color Sequence 2", "Alternate timed edge/floor colors, then resume", 0, &edge_color_sequence2},
+      {"YMCA Full", "Complete music-synchronized disco choreography", 0, &ymca_full},
+      {"YMCA Hip Sway", "Hands on hips, pelvis swaying side to side", 0, &ymca_hip_sway},
       {0, 0, 0, 0}};
   const uint16_t JUMPITEMS = sizeof(jump_table) / sizeof(jump_item_t) - 1;
   if (index > JUMPITEMS)

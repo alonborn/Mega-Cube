@@ -55,7 +55,16 @@ static void handleControllerCommand(String command) {
       controllerReply("ERROR INVALID_ANIMATION");
       return;
     }
+    if (id == ANIMATION_YMCA_LETTERS || id == ANIMATION_WALL_FLASH ||
+        id == ANIMATION_EDGE_COLOR_SEQUENCE || id == ANIMATION_EDGE_COLOR_SEQUENCE2) {
+      if (id == ANIMATION_YMCA_LETTERS) Animation::playYMCALetters();
+      else if (id == ANIMATION_WALL_FLASH) Animation::flashWalls();
+      else Animation::edgeColorSequence(id == ANIMATION_EDGE_COLOR_SEQUENCE2);
+      controllerReply("OK EFFECT " + String(id));
+      return;
+    }
     sendAnimationEvent("STORM_STOP");
+    sendAnimationEvent("YMCA_STOP");
     config.animation.playlist = false;
     config.animation.play_one = true;
     config.animation.animation = id;
@@ -67,6 +76,7 @@ static void handleControllerCommand(String command) {
 
   if (command == "PLAYLIST") {
     sendAnimationEvent("STORM_STOP");
+    sendAnimationEvent("YMCA_STOP");
     config.animation.play_one = false;
     config.animation.playlist = true;
     config.animation.changed = true;
